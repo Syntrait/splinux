@@ -107,6 +107,7 @@ target/release/splinux
 This error occurs, because Splinux requires raw device access to grab inputs, regardless of the system's state. In order to have raw access to the devices, one of the two conditions must be met
 
 1. The user must be in the "input" group
+
 Add the current user to the input group with
 
 ```sudo usermod -aG input $USER```
