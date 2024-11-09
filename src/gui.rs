@@ -79,7 +79,10 @@ impl eframe::App for App {
         if self.aboutwindow_visible {
             egui::Window::new("About").show(ctx, |ui| {
                 ui.label("Splinux");
-                ui.label("Version 1.0");
+                ui.label(format!(
+                    "Version {}",
+                    option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+                ));
                 ui.label("This program comes with absolutely no warranty.");
                 ui.hyperlink_to(
                     "See the GNU General Public License, version 3 for details.",

@@ -6,8 +6,6 @@ use client::client;
 use gui::start;
 use std::env::args;
 
-// Xephyr -softCursor -screen 1920x540 :99
-
 fn main() {
     let args: Vec<String> = args().collect();
     if args.len() == 1 {
