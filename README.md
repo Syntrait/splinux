@@ -51,14 +51,14 @@ If we run ```evtest```, we will be greeted with a list of devices currently conn
   ```
 </details>
 
-We need to ignore things like "Consumer Control", "System Control", "Lid Switch", "Power button", and devices like keyboards belonging to mice's.
+We need to ignore things like "Consumer Control", "System Control", "Lid Switch", "Power button", and devices like keyboards belonging to mices.
 In this case, I have 2 keyboards connected via USB (excluding the laptop keyboard) and 2 mice.
 
 What we want from here are 25,28 and 10,13
 
 
 ## Launching Splinux
-Launch Splinux. After launching Splinux, you will be greeted with 2 text boxes, and a one "+" button.
+Launch Splinux. After launching Splinux, you will be greeted with 2 text boxes, and a "+" button.
 
 Enter the display id you found in the box. If you found ```X30```, then type ```:30``` in the box.
 
@@ -96,7 +96,7 @@ This error occurs, because Splinux requires raw device access to grab inputs, re
 1. The user must be in the "input" group
 Add the current user to the input group with
 
-```sudo usermod -aG input username```
+```sudo usermod -aG input $USER```
 
 and then relog to apply the changes.
 
