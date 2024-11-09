@@ -67,10 +67,7 @@ pub fn client(devices: String) {
                                         } else {
                                             x11rb::protocol::xproto::KEY_RELEASE_EVENT
                                         },
-                                        match x {
-                                            1..=61 => x as u8 + 8,
-                                            _ => 0,
-                                        },
+                                        x as u8 + 8,
                                         0,
                                         NONE,
                                         0,
