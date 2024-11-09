@@ -98,7 +98,7 @@ wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.t
 tar xf upx-4.2.4-amd64_linux.tar.xz
 upx-4.2.4-amd64_linux/upx target/release/splinux
 
-Your binary is ready at target/release/splinux
+target/release/splinux
 ```
 
 # Troubleshooting
