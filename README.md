@@ -87,6 +87,19 @@ Every X server can only have **one** focused window, however, we can nest multip
 When I first started developing this program, I was using [Xephyr](https://wiki.archlinux.org/title/Xephyr), and it was fine, until I realized that Xephyr doesn't have 3D acceleration. While this might be okay for some applications, this meant that some programs that should have worked perfectly fine normally, would have suffered from terrible performance.
 To mitigate this issue, I decided to use gamescope, which has 3D acceleration.
 
+# Building
+```
+git clone https://github.com/Syntrait/splinux
+cd splinux
+cargo build -r
+
+# OPTIONAL, this is for decreasing the file size
+wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz
+tar xf upx-4.2.4-amd64_linux.tar.xz
+upx-4.2.4-amd64_linux/upx target/release/splinux
+
+Your binary is ready at target/release/splinux
+```
 
 # Troubleshooting
 
