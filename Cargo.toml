@@ -1,0 +1,13 @@
+[package]
+name = "splinux"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+eframe = "0.29.1"
+evdev = "0.12.2"
+x11rb = { version = "0.13.1", features = ["xinput", "xtest"] }
+
+[profile.release]
+strip = true
+lto = true
