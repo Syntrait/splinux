@@ -18,7 +18,7 @@ If the program is a game on Steam, add this to the command line arguments
 ```gamescope -W 1920 -H 540 -- %command%```
 
 ## Identifying the display ids
-After launching your programs on seperate gamescope sessions, you need to know their display ids
+After launching your programs on separate gamescope sessions, you need to know their display ids
 
 At the location "/tmp/.X11-unix/", you can see files with names like "X0", "X1", "X2", "X3", "X4", "X5", etc.
 These files show what displays are currently open. The ones you should be looking for should be the recent ones with the biggest numbers.
