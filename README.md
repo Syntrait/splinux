@@ -96,7 +96,7 @@ It allows us to have 2 different save file locations. It's like creating a symbo
 
 We will be utilizing the ```--bind``` argument. If we do ```--bind ~/savedata_location_of_player_2 ~/savedata```, the program that we will be running using bwrap will think that it's reading and writing to ```~/savedata```, however, the operations are actually being redirected to ```~/savedata_location_of_player_2```.
 
-This means the game won't end up overwriting player 1's savedata, instead, it will have its own save data location. Pretty cool, right?
+This means the game won't end up overwriting player 1's save data, instead, it will have its own save data location. Pretty cool, right?
 
 We actually don't need bubblewrap for Proton games, because the save data is located at ```~/.local/share/Steam/steamapps/compatdata/game_id```
 
