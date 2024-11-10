@@ -185,6 +185,9 @@ run \ # Tells Proton to run an executable
 Lethal\ Company.exe # The executable name
 ```
 
+# Screenshots
+
+![2hollow](https://github.com/user-attachments/assets/c3e57bff-ffb3-46b8-94c5-c557e406c51c)
 
 # Troubleshooting
 
