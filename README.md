@@ -83,6 +83,7 @@ The program that we will be running inside gamescope will think the the screen i
 
 ## What is Xwayland
 Xwayland is a compatibility layer for Wayland. Wayland is still in development, and some programs are yet to adopt it, and still use X11. To run these applications in Wayland, we need a compatibility layer. That's what Xwayland is.
+
 Xwayland will run a X server, and assign a display number to it (ex. DISPLAY=:30)
 
 Every X server can only have **one** focused window, however, we can nest multiple X servers inside each other, and if we open multiple X servers, we can have multiple focused windows, and because of the isolation, they won't be affecting each other.
@@ -110,7 +111,9 @@ If you are using GOG, then you don't have to do anything, because GOG games don'
 
 ## Why are we deleting unity.lock
 Unity keeps track of if a game is open or not by checking the presence of a file called ```unity.lock```
+
 If you don't want to deal with deleting this file for every client you open, or you are playing a non-Unity game and you don't know where the lock file is, you can clone the game directory instead.
+
 Some games might not check whether the game is already open or not, so you can skip step 7, if that's the case.
 
 ## What if I want to run 2 different games
@@ -118,6 +121,7 @@ Then you can just pretty much skip most of these steps. Steams already allows yo
 Just make sure that you set the launch arguments correctly.
 
 For native games, you can skip steps 2-8
+
 For Proton games, you can skip steps 2-7
 
 ## Is there a limit to how much games can be controlled at once?
