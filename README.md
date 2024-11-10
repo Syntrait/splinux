@@ -2,7 +2,7 @@
 A tool for splitting the screen on Linux, and passing inputs to them 
 
 # Disclaimer
-**This program might trigger anticheats for "automation", use at your own risk.**
+**This program might trigger anti-cheats for "automation", use at your own risk.**
 
 # Usage
 
@@ -20,7 +20,7 @@ If the program is a game on Steam, add this to the command line arguments
 ## Identifying the display ids
 After launching your programs on separate gamescope sessions, you need to know their display ids
 
-At the location "/tmp/.X11-unix/", you can see files with names like "X0", "X1", "X2", "X3", "X4", "X5", etc.
+At the location ```/tmp/.X11-unix/```, you can see files with names like "X0", "X1", "X2", "X3", "X4", "X5", etc.
 These files show what displays are currently open. The ones you should be looking for should be the recent ones with the biggest numbers.
 
 
@@ -178,7 +178,7 @@ bwrap \     # Runs bubblewrap
 6. Delete ```unity.lock``` with ```rm unity.lock```
 7. Run the game with
 ```
-STEAM_COMPAT_DATA_PATH="$HOME/.local/share/Steam/steamapps/compatdata/game_id_2" \ # Where the save data of the protonfix is located. You can make this wherever you want.
+STEAM_COMPAT_DATA_PATH="$HOME/.local/share/Steam/steamapps/compatdata/game_id_2" \ # Where the save data of the protonprefix is located. You can make this wherever you want.
 STEAM_COMPAT_CLIENT_INSTALL_PATH="$HOME/.steam/steam" \ # Proton needs the Steam client location.
 gamescope \ # Runs gamescope
 -W 1920 \   # Sets width to 1920
