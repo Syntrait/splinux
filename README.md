@@ -118,7 +118,7 @@ Then you can just pretty much skip most of these steps. Steams already allows yo
 Just make sure that you set the launch arguments correctly.
 
 For native games, you can skip steps 2-8
-For Proton games, you can skip steps 2-8
+For Proton games, you can skip steps 2-7
 
 ## Is there a limit to how much games can be controlled at once?
 I don't think so.
