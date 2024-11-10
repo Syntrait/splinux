@@ -82,7 +82,7 @@ When we pass the ```-W``` argument, we are passing the width, and ```-H``` for t
 The program that we will be running inside gamescope will think the the screen is 1920x540, and will run in a window of that size.
 
 ## What is Xwayland
-XWayland is a compatibility layer for Wayland. Wayland is still in development, and some programs are yet to adopt it, and still use X11. To run these applications in Wayland, we need a compatibility layer. That's what Xwayland is.
+Xwayland is a compatibility layer for Wayland. Wayland is still in development, and some programs are yet to adopt it, and still use X11. To run these applications in Wayland, we need a compatibility layer. That's what Xwayland is.
 Xwayland will run a X server, and assign a display number to it (ex. DISPLAY=:30)
 
 Every X server can only have **one** focused window, however, we can nest multiple X servers inside each other, and if we open multiple X servers, we can have multiple focused windows, and because of the isolation, they won't be affecting each other.
