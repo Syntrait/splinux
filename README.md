@@ -105,11 +105,11 @@ When I first started developing this program, I was using [Xephyr](https://wiki.
 To mitigate this issue, I decided to use gamescope, which has 3D acceleration.
 
 ## Why are we replacing the ```libsteam_api.so``` or ```steam_api64.dll```
-Steam has a DRM (Digital Rights Management) called SteamStub. This DRM prevents us from starting the same game simultaneously.
+[Steam](https://store.steampowered.com) has a DRM (Digital Rights Management) called SteamStub. This DRM prevents us from starting the same game simultaneously.
 
-If you are using GOG, then you don't have to do anything, because GOG games don't have DRM.
+If you are using [GOG](https://www.gog.com), then you don't have to do anything, because GOG games don't have DRM.
 
-## Why are we deleting unity.lock
+## Why are we deleting ```unity.lock```
 Unity keeps track of if a game is open or not by checking the presence of a file called ```unity.lock```
 
 If you don't want to deal with deleting this file for every client you open, or you are playing a non-Unity game and you don't know where the lock file is, you can clone the game directory instead.
@@ -124,7 +124,7 @@ For native games, you can skip steps 2-8
 
 For Proton games, you can skip steps 2-7
 
-## Is there a limit to how much games can be controlled at once?
+## Is there a limit to how much games can be controlled at once
 I don't think so.
 
 # Building
@@ -152,7 +152,7 @@ If you are trying to play a non-Unity game, you need to find where it stores its
 ## Native games
 1. You can run the first game from Steam, if you want.
 2. For the other instances of the same game, locate the ```libsteam_api.so``` file (for Unity games, located in ```game_name_Data/plugins/```)
-3. Replace the ```libsteam_api.so``` with [Goldberg](https://mr_goldberg.gitlab.io/goldberg_emulator/). Goldberg has a patched ```libsteam_api.so``` in the ```linux/``` directory in the archive.
+3. Replace the ```libsteam_api.so``` with [Goldberg](https://mr_goldberg.gitlab.io/goldberg_emulator). Goldberg has a patched ```libsteam_api.so``` in the ```linux/``` directory in the archive.
 4. Create a directory for the second player's save data location ```mkdir ~/.config/unity3d_second_player```
 5. Open a terminal, and navigate to ```~/.local/share/Steam/steamapps/common```
 6. Enter the game's directory
@@ -172,7 +172,7 @@ bwrap \     # Runs bubblewrap
 ## Proton games
 1. You can run the first game from Steam, if you want.
 2. For the other instances of the same game, locate the ```steam_api64.dll``` file (for Unity games, located in ```game_name_Data/Plugins/x86_64```
-3. Replace the ```steam_api64.dll``` with [Goldberg](https://mr_goldberg.gitlab.io/goldberg_emulator/). Goldberg has a patched ```steam_api64.dll``` in the top level of the archive.
+3. Replace the ```steam_api64.dll``` with [Goldberg](https://mr_goldberg.gitlab.io/goldberg_emulator). Goldberg has a patched ```steam_api64.dll``` in the top level of the archive.
 4. Open a terminal, and navigate to ```~/.local/share/Steam/steamapps/common```
 5. Enter the game's directory
 6. Delete ```unity.lock``` with ```rm unity.lock```
