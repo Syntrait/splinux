@@ -32,60 +32,106 @@ pub fn client(devices: String) {
             loop {
                 for e in device.fetch_events().unwrap() {
                     match e.kind() {
-                        evdev::InputEventKind::Key(x) => {
-                            //println!("x.0: {}, e.value(): {}", x.0, e.value());
-
-                            match x.0 {
-                                val @ 272..=274 => {
-                                    conn.xtest_fake_input(
-                                        if e.value() == 1 {
-                                            x11rb::protocol::xproto::BUTTON_PRESS_EVENT
-                                        } else {
-                                            x11rb::protocol::xproto::BUTTON_RELEASE_EVENT
-                                        },
-                                        match val {
-                                            272 => 1,
-                                            273 => 3,
-                                            274 => 2,
-                                            _ => 0,
-                                        },
-                                        0,
-                                        NONE,
-                                        0,
-                                        0,
-                                        0,
-                                    )
-                                    .unwrap();
-                                }
-                                x => {
-                                    if e.value() == 2 {
-                                        continue;
-                                    }
-                                    conn.xtest_fake_input(
-                                        if e.value() == 1 {
-                                            x11rb::protocol::xproto::KEY_PRESS_EVENT
-                                        } else {
-                                            x11rb::protocol::xproto::KEY_RELEASE_EVENT
-                                        },
-                                        x as u8 + 8,
-                                        0,
-                                        NONE,
-                                        0,
-                                        0,
-                                        0,
-                                    )
-                                    .unwrap();
-                                }
+                        evdev::InputEventKind::Key(x) => match x.0 {
+                            val @ 272..=274 => {
+                                conn.xtest_fake_input(
+                                    if e.value() == 1 {
+                                        x11rb::protocol::xproto::BUTTON_PRESS_EVENT
+                                    } else {
+                                        x11rb::protocol::xproto::BUTTON_RELEASE_EVENT
+                                    },
+                                    match val {
+                                        272 => 1,
+                                        273 => 3,
+                                        274 => 2,
+                                        _ => 0,
+                                    },
+                                    0,
+                                    NONE,
+                                    0,
+                                    0,
+                                    0,
+                                )
+                                .unwrap();
                             }
-                        }
+                            x => {
+                                if e.value() == 2 {
+                                    continue;
+                                }
+                                conn.xtest_fake_input(
+                                    if e.value() == 1 {
+                                        x11rb::protocol::xproto::KEY_PRESS_EVENT
+                                    } else {
+                                        x11rb::protocol::xproto::KEY_RELEASE_EVENT
+                                    },
+                                    x as u8 + 8,
+                                    0,
+                                    NONE,
+                                    0,
+                                    0,
+                                    0,
+                                )
+                                .unwrap();
+                            }
+                        },
                         evdev::InputEventKind::RelAxis(_) => match e.code() {
                             REL_X => {
-                                conn.warp_pointer(window, NONE, 0, 0, 0, 0, e.value() as i16, 0)
-                                    .unwrap();
+                                let curpos = conn.query_pointer(window).unwrap().reply().unwrap();
+
+                                if curpos.root_x as u16 * 2 == screen.width_in_pixels
+                                    && curpos.root_y as u16 * 2 == screen.height_in_pixels
+                                {
+                                    conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, e.value() as i16, 0)
+                                        .unwrap();
+
+                                    let curpos2 =
+                                        conn.query_pointer(window).unwrap().reply().unwrap();
+
+                                    if curpos2.root_x as u16 * 2 == screen.width_in_pixels {
+                                        conn.xtest_fake_input(
+                                            x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
+                                            0,
+                                            0,
+                                            NONE,
+                                            e.value() as i16,
+                                            0,
+                                            0,
+                                        )
+                                        .unwrap();
+                                    }
+                                } else {
+                                    conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, e.value() as i16, 0)
+                                        .unwrap();
+                                }
                             }
                             REL_Y => {
-                                conn.warp_pointer(window, NONE, 0, 0, 0, 0, 0, e.value() as i16)
-                                    .unwrap();
+                                let curpos = conn.query_pointer(window).unwrap().reply().unwrap();
+
+                                if curpos.root_x as u16 * 2 == screen.width_in_pixels
+                                    && curpos.root_y as u16 * 2 == screen.height_in_pixels
+                                {
+                                    conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, 0, e.value() as i16)
+                                        .unwrap();
+
+                                    let curpos2 =
+                                        conn.query_pointer(window).unwrap().reply().unwrap();
+
+                                    if curpos2.root_y as u16 * 2 == screen.height_in_pixels {
+                                        conn.xtest_fake_input(
+                                            x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
+                                            0,
+                                            0,
+                                            NONE,
+                                            0,
+                                            e.value() as i16,
+                                            0,
+                                        )
+                                        .unwrap();
+                                    }
+                                } else {
+                                    conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, 0, e.value() as i16)
+                                        .unwrap();
+                                }
                             }
                             REL_WHEEL => {
                                 conn.xtest_fake_input(
