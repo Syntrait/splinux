@@ -1,5 +1,6 @@
 use std::{
     env::args,
+    fmt::Display,
     process::{Child, Command},
 };
 
@@ -13,10 +14,26 @@ pub struct Client {
     proc: Child,
     pub devices: String,
     pub display: String,
+    pub backend: Backend,
+}
+
+#[derive(PartialEq, Clone)]
+pub enum Backend {
+    Enigo,
+    Legacy,
+}
+
+impl Display for Backend {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Backend::Enigo => write!(f, "Enigo"),
+            Backend::Legacy => write!(f, "Legacy"),
+        }
+    }
 }
 
 impl Client {
-    pub fn new(display: String, devices: String) -> Self {
+    pub fn new(display: String, devices: String, backend: Backend) -> Self {
         let args: Vec<String> = args().collect();
         let proc = Command::new(args[0].clone())
             .args(["-client", devices.as_str()])
@@ -30,6 +47,7 @@ impl Client {
             proc,
             devices,
             display,
+            backend,
         }
     }
 

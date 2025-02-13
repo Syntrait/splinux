@@ -1,10 +1,11 @@
-use crate::types::Client;
+use crate::types::{Backend, Client};
 use eframe::egui;
 
 struct App {
     clientlist: Vec<Client>,
     newclient_display: String,
     newdevices_display: String,
+    newbackend_display: Backend,
     aboutwindow_visible: bool,
 }
 
@@ -23,6 +24,7 @@ impl Default for App {
             clientlist: vec![],
             newclient_display: ":1".to_owned(),
             newdevices_display: "0,0".to_owned(),
+            newbackend_display: Backend::Enigo,
             aboutwindow_visible: false,
         }
     }
@@ -42,19 +44,31 @@ impl eframe::App for App {
             });
 
             ui.horizontal(|ui| {
-                ui.label("Display:");
-                ui.add(egui::TextEdit::singleline(&mut self.newclient_display).desired_width(20.0));
+                ui.label("Display:")
+                    .on_hover_cursor(egui::CursorIcon::Help)
+                    .on_hover_text("The display ID to use. Eg. \"wayland-2\", \":30\" ");
+                ui.add(egui::TextEdit::singleline(&mut self.newclient_display).desired_width(50.0));
             });
             ui.horizontal(|ui| {
-                ui.label("Devices:");
+                ui.label("Devices:")
+                    .on_hover_cursor(egui::CursorIcon::Help)
+                    .on_hover_text("The input devices' IDs, seperated with commas. Eg. \"25,28\"");
                 ui.add(
                     egui::TextEdit::singleline(&mut self.newdevices_display).desired_width(50.0),
                 );
+            });
+            ui.horizontal(|ui| {
+                ui.label("Backend:")
+                    .on_hover_cursor(egui::CursorIcon::Help)
+                    .on_hover_text("The backend (input sender) to use. Enigo recommended.");
+                ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
+                ui.radio_value(&mut self.newbackend_display, Backend::Legacy, "Legacy");
             });
             if ui.button("+").clicked() {
                 let newclient = Client::new(
                     self.newclient_display.clone(),
                     self.newdevices_display.clone(),
+                    self.newbackend_display.clone(),
                 );
                 self.clientlist.push(newclient);
             }
@@ -68,6 +82,9 @@ impl eframe::App for App {
                         });
                         ui.group(|ui| {
                             ui.label(format!("Devices: {}", client.devices));
+                        });
+                        ui.group(|ui| {
+                            ui.label(format!("Backend: {}", client.backend));
                         });
                         if ui.button("X").clicked() {
                             client.kill();
