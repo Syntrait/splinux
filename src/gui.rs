@@ -2,6 +2,7 @@ use crate::types::{Backend, Client};
 use eframe::egui;
 
 struct App {
+    // TODO: dont forget to tell the user what's wrong with the arguments
     clientlist: Vec<Client>,
     newclient_display: String,
     newdevices_display: String,
@@ -47,14 +48,16 @@ impl eframe::App for App {
                 ui.label("Display:")
                     .on_hover_cursor(egui::CursorIcon::Help)
                     .on_hover_text("The display ID to use. Eg. \"wayland-2\", \":30\" ");
-                ui.add(egui::TextEdit::singleline(&mut self.newclient_display).desired_width(50.0));
+                ui.add(
+                    egui::TextEdit::singleline(&mut self.newclient_display).desired_width(250.0),
+                );
             });
             ui.horizontal(|ui| {
                 ui.label("Devices:")
                     .on_hover_cursor(egui::CursorIcon::Help)
                     .on_hover_text("The input devices' IDs, seperated with commas. Eg. \"25,28\"");
                 ui.add(
-                    egui::TextEdit::singleline(&mut self.newdevices_display).desired_width(50.0),
+                    egui::TextEdit::singleline(&mut self.newdevices_display).desired_width(250.0),
                 );
             });
             ui.horizontal(|ui| {

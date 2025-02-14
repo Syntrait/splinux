@@ -15,6 +15,7 @@ use types::Backend;
 - Gamescope is not a hard dependency anymore
 - Input sending is now handled by Enigo
 - Proper command line argument parsing
+- Support for multiple gamepads
 
 
 */
@@ -58,11 +59,10 @@ fn main() {
                         .long("backend")
                         .help("the input sender backend, \"enigo\" or \"legacy\". default is enigo")
                         .action(ArgAction::Set)
-                        .num_args(0..1)
+                        .num_args(1)
                         .default_value("enigo"),
                 ),
         )
-        //
         .get_matches();
 
     match matches.subcommand() {
@@ -74,11 +74,11 @@ fn main() {
             let input: &String = x.get_one("input").unwrap();
             let backend: Backend = if x
                 .get_one("backend")
-                .is_some_and(|x: &String| x.to_lowercase() == "enigo")
+                .is_some_and(|x: &String| x.to_lowercase() == "legacy")
             {
-                Backend::Enigo
-            } else {
                 Backend::Legacy
+            } else {
+                Backend::Enigo
             };
 
             match backend {

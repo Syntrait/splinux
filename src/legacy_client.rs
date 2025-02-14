@@ -41,6 +41,10 @@ pub fn client(devices: String) {
                         _ => {}
                     }
 
+                    // TODO: Fix legacy backend
+                    // - abc
+                    // - 123
+
                     /*
                     match e.kind() {
                         evdev::InputEventKind::Key(x) => match x.0 {

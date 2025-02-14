@@ -36,7 +36,26 @@ impl Client {
     pub fn new(display: String, devices: String, backend: Backend) -> Self {
         let args: Vec<String> = args().collect();
         let proc = Command::new(args[0].clone())
-            .args(["-client", devices.as_str()])
+            .args(match backend {
+                Backend::Enigo => [
+                    "run",
+                    "-d",
+                    display.as_str(),
+                    "-i",
+                    devices.as_str(),
+                    "-b",
+                    "enigo",
+                ],
+                Backend::Legacy => [
+                    "run",
+                    "-d",
+                    display.as_str(),
+                    "-i",
+                    devices.as_str(),
+                    "-b",
+                    "legacy",
+                ],
+            })
             .env("DISPLAY", display.clone())
             .spawn()
             .unwrap();
