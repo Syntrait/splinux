@@ -4,10 +4,40 @@ use std::{
     process::{Child, Command},
 };
 
-// CODE
 pub const REL_X: u16 = 0;
 pub const REL_Y: u16 = 1;
 pub const REL_WHEEL: u16 = 8;
+
+pub enum Key {
+    A,
+    B,
+    C,
+    D,
+    E,
+    F,
+    G,
+    H,
+    I,
+    J,
+    K,
+    L,
+    M,
+    N,
+    O,
+    P,
+    Q,
+    R,
+    S,
+    T,
+    U,
+    V,
+    W,
+    X,
+    Y,
+    Z,
+}
+
+pub enum KeyButton {}
 
 pub struct Client {
     pub pid: u32,
@@ -33,7 +63,7 @@ impl Display for Backend {
 }
 
 impl Client {
-    pub fn new(display: String, devices: String, backend: Backend) -> Self {
+    pub fn new(display: String, devices: String, backend: Backend, mita: bool) -> Self {
         let args: Vec<String> = args().collect();
         let proc = Command::new(args[0].clone())
             .args(match backend {
@@ -57,6 +87,7 @@ impl Client {
                 ],
             })
             .env("DISPLAY", display.clone())
+            .env(if mita { "mita" } else { "" }, if mita { "1" } else { "" })
             .spawn()
             .unwrap();
         let pid = proc.id();

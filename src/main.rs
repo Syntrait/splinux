@@ -7,7 +7,7 @@ use clap::{Arg, ArgAction, Command};
 use client::client;
 use gui::start;
 use legacy_client::client as legacy_client;
-use std::env::args;
+use std::env::{args, var_os};
 use types::Backend;
 
 /*
@@ -83,14 +83,17 @@ fn main() {
 
             match backend {
                 Backend::Enigo => {
-                    client(input.to_owned(), display.to_owned());
+                    client(
+                        input.to_owned(),
+                        display.to_owned(),
+                        var_os("mita").is_some_and(|x| x == "1"),
+                    );
                 }
                 Backend::Legacy => {
                     legacy_client(input.to_owned());
                 }
             }
         }
-        //
         _ => unreachable!(),
     }
     /*

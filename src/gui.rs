@@ -7,6 +7,7 @@ struct App {
     newclient_display: String,
     newdevices_display: String,
     newbackend_display: Backend,
+    newmita_display: bool,
     aboutwindow_visible: bool,
 }
 
@@ -26,6 +27,7 @@ impl Default for App {
             newclient_display: ":1".to_owned(),
             newdevices_display: "0,0".to_owned(),
             newbackend_display: Backend::Enigo,
+            newmita_display: false,
             aboutwindow_visible: false,
         }
     }
@@ -72,6 +74,7 @@ impl eframe::App for App {
                     self.newclient_display.clone(),
                     self.newdevices_display.clone(),
                     self.newbackend_display.clone(),
+                    self.newmita_display.clone(),
                 );
                 self.clientlist.push(newclient);
             }
@@ -98,6 +101,7 @@ impl eframe::App for App {
         });
         if self.aboutwindow_visible {
             egui::Window::new("About").show(ctx, |ui| {
+                ui.checkbox(&mut self.newmita_display, "🕯️💝");
                 ui.label("Splinux");
                 ui.label(format!(
                     "Version {}",
