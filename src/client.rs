@@ -159,18 +159,6 @@ pub fn client(devices: String, display: String, mita: bool) {
                                         .unwrap();
                                 }
                             }
-
-                            println!("space is {:#?}", enigo::Key::Space);
-                            println!("Keycode meaning according to evdev: {:#?}", code);
-                            println!("Keycode according to evdev: {}", code.0);
-                            println!(
-                                "Keycode meaning according to char: {}",
-                                char::from_u32(code.0 as u32).unwrap()
-                            );
-                            println!(
-                                "Keycode according to keycode_to_char: {}",
-                                evdev_to_char(code)
-                            );
                         }
                         evdev::EventSummary::RelativeAxis(_, code, value) => {
                             // TODO: mouse implementation

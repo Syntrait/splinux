@@ -8,37 +8,6 @@ pub const REL_X: u16 = 0;
 pub const REL_Y: u16 = 1;
 pub const REL_WHEEL: u16 = 8;
 
-pub enum Key {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-}
-
-pub enum KeyButton {}
-
 pub struct Client {
     pub pid: u32,
     proc: Child,

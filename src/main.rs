@@ -96,19 +96,4 @@ fn main() {
         }
         _ => unreachable!(),
     }
-    /*
-
-    splinux
-
-    splinux gui
-
-    splinux --help
-
-    splinux run -d wayland-2 -i 23,24
-
-    splinux run -d :11 -i 23,24
-
-    splinux run -d wayland-2 -i 23,24 -b legacy
-
-    */
 }
