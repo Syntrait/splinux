@@ -61,112 +61,42 @@ fn evdev_to_char(key: KeyCode) -> Option<char> {
 
 fn evdev_to_enigo_key(key: KeyCode) -> Option<enigo::Key> {
     match key {
-        KeyCode::KEY_LEFTALT => {
-            return Some(enigo::Key::Alt);
-        }
-        KeyCode::KEY_RIGHTALT => {
-            return Some(enigo::Key::Alt);
-        }
-        KeyCode::KEY_LEFTMETA => {
-            return Some(enigo::Key::Meta);
-        }
-        KeyCode::KEY_RIGHTMETA => {
-            return Some(enigo::Key::Meta);
-        }
-        KeyCode::KEY_LEFTSHIFT => {
-            return Some(enigo::Key::LShift);
-        }
-        KeyCode::KEY_RIGHTSHIFT => {
-            return Some(enigo::Key::RShift);
-        }
-        KeyCode::KEY_CAPSLOCK => {
-            return Some(enigo::Key::CapsLock);
-        }
-        KeyCode::KEY_LEFTCTRL => {
-            return Some(enigo::Key::LControl);
-        }
-        KeyCode::KEY_RIGHTCTRL => {
-            return Some(enigo::Key::RControl);
-        }
-        KeyCode::KEY_BACKSPACE => {
-            return Some(enigo::Key::Backspace);
-        }
-        KeyCode::KEY_DELETE => {
-            return Some(enigo::Key::Delete);
-        }
-        KeyCode::KEY_UP => {
-            return Some(enigo::Key::UpArrow);
-        }
-        KeyCode::KEY_DOWN => {
-            return Some(enigo::Key::DownArrow);
-        }
-        KeyCode::KEY_LEFT => {
-            return Some(enigo::Key::LeftArrow);
-        }
-        KeyCode::KEY_RIGHT => {
-            return Some(enigo::Key::RightArrow);
-        }
-        KeyCode::KEY_HOME => {
-            return Some(enigo::Key::Home);
-        }
-        KeyCode::KEY_END => {
-            return Some(enigo::Key::End);
-        }
-        KeyCode::KEY_ESC => {
-            return Some(enigo::Key::Escape);
-        }
-        KeyCode::KEY_INSERT => {
-            return Some(enigo::Key::Insert);
-        }
-        KeyCode::KEY_NUMLOCK => {
-            return Some(enigo::Key::Numlock);
-        }
-        KeyCode::KEY_PAGEUP => {
-            return Some(enigo::Key::PageUp);
-        }
-        KeyCode::KEY_PAGEDOWN => {
-            return Some(enigo::Key::PageDown);
-        }
-        KeyCode::KEY_PRINT => {
-            return Some(enigo::Key::SysReq);
-        }
+        KeyCode::KEY_LEFTALT => return Some(enigo::Key::Alt),
+        KeyCode::KEY_RIGHTALT => return Some(enigo::Key::Alt),
+        KeyCode::KEY_LEFTMETA => return Some(enigo::Key::Meta),
+        KeyCode::KEY_RIGHTMETA => return Some(enigo::Key::Meta),
+        KeyCode::KEY_LEFTSHIFT => return Some(enigo::Key::LShift),
+        KeyCode::KEY_RIGHTSHIFT => return Some(enigo::Key::RShift),
+        KeyCode::KEY_CAPSLOCK => return Some(enigo::Key::CapsLock),
+        KeyCode::KEY_LEFTCTRL => return Some(enigo::Key::LControl),
+        KeyCode::KEY_RIGHTCTRL => return Some(enigo::Key::RControl),
+        KeyCode::KEY_BACKSPACE => return Some(enigo::Key::Backspace),
+        KeyCode::KEY_DELETE => return Some(enigo::Key::Delete),
+        KeyCode::KEY_UP => return Some(enigo::Key::UpArrow),
+        KeyCode::KEY_DOWN => return Some(enigo::Key::DownArrow),
+        KeyCode::KEY_LEFT => return Some(enigo::Key::LeftArrow),
+        KeyCode::KEY_RIGHT => return Some(enigo::Key::RightArrow),
+        KeyCode::KEY_HOME => return Some(enigo::Key::Home),
+        KeyCode::KEY_END => return Some(enigo::Key::End),
+        KeyCode::KEY_ESC => return Some(enigo::Key::Escape),
+        KeyCode::KEY_INSERT => return Some(enigo::Key::Insert),
+        KeyCode::KEY_NUMLOCK => return Some(enigo::Key::Numlock),
+        KeyCode::KEY_PAGEUP => return Some(enigo::Key::PageUp),
+        KeyCode::KEY_PAGEDOWN => return Some(enigo::Key::PageDown),
+        KeyCode::KEY_PRINT => return Some(enigo::Key::SysReq),
 
-        KeyCode::KEY_F1 => {
-            return Some(enigo::Key::F1);
-        }
-        KeyCode::KEY_F2 => {
-            return Some(enigo::Key::F2);
-        }
-        KeyCode::KEY_F3 => {
-            return Some(enigo::Key::F3);
-        }
-        KeyCode::KEY_F4 => {
-            return Some(enigo::Key::F4);
-        }
-        KeyCode::KEY_F5 => {
-            return Some(enigo::Key::F5);
-        }
-        KeyCode::KEY_F6 => {
-            return Some(enigo::Key::F6);
-        }
-        KeyCode::KEY_F7 => {
-            return Some(enigo::Key::F7);
-        }
-        KeyCode::KEY_F8 => {
-            return Some(enigo::Key::F8);
-        }
-        KeyCode::KEY_F9 => {
-            return Some(enigo::Key::F9);
-        }
-        KeyCode::KEY_F10 => {
-            return Some(enigo::Key::F10);
-        }
-        KeyCode::KEY_F11 => {
-            return Some(enigo::Key::F11);
-        }
-        KeyCode::KEY_F12 => {
-            return Some(enigo::Key::F12);
-        }
+        KeyCode::KEY_F1 => return Some(enigo::Key::F1),
+        KeyCode::KEY_F2 => return Some(enigo::Key::F2),
+        KeyCode::KEY_F3 => return Some(enigo::Key::F3),
+        KeyCode::KEY_F4 => return Some(enigo::Key::F4),
+        KeyCode::KEY_F5 => return Some(enigo::Key::F5),
+        KeyCode::KEY_F6 => return Some(enigo::Key::F6),
+        KeyCode::KEY_F7 => return Some(enigo::Key::F7),
+        KeyCode::KEY_F8 => return Some(enigo::Key::F8),
+        KeyCode::KEY_F9 => return Some(enigo::Key::F9),
+        KeyCode::KEY_F10 => return Some(enigo::Key::F10),
+        KeyCode::KEY_F11 => return Some(enigo::Key::F11),
+        KeyCode::KEY_F12 => return Some(enigo::Key::F12),
 
         _ => {}
     }
