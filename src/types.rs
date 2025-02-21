@@ -32,7 +32,16 @@ impl Display for Backend {
 }
 
 impl Client {
-    pub fn new(display: String, devices: String, backend: Backend, mita: bool) -> Self {
+    pub fn new(
+        display: String,
+        devices: String,
+        backend: Backend,
+        mita: bool,
+    ) -> Result<Self, String> {
+        if display.contains("wayland") && backend == Backend::Legacy {
+            return Err("Legacy backend doesn't support Wayland".to_owned());
+        }
+
         let args: Vec<String> = args().collect();
         let proc = Command::new(args[0].clone())
             .args(match backend {
@@ -55,19 +64,26 @@ impl Client {
                     "legacy",
                 ],
             })
-            .env("DISPLAY", display.clone())
+            .env(
+                if display.contains(":") {
+                    "DISPLAY"
+                } else {
+                    "WAYLAND_DISPLAY"
+                },
+                display.clone(),
+            )
             .env(if mita { "mita" } else { "" }, if mita { "1" } else { "" })
             .spawn()
             .unwrap();
         let pid = proc.id();
 
-        Self {
+        Ok(Self {
             pid,
             proc,
             devices,
             display,
             backend,
-        }
+        })
     }
 
     pub fn is_alive(&mut self) -> bool {

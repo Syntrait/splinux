@@ -3,6 +3,7 @@ use eframe::egui;
 
 struct App {
     // TODO: dont forget to tell the user what's wrong with the arguments
+    alertlist: Vec<String>,
     clientlist: Vec<Client>,
     newclient_display: String,
     newdevices_display: String,
@@ -23,6 +24,7 @@ impl Drop for App {
 impl Default for App {
     fn default() -> Self {
         Self {
+            alertlist: vec![],
             clientlist: vec![],
             newclient_display: ":1".to_owned(),
             newdevices_display: "0,0".to_owned(),
@@ -70,34 +72,39 @@ impl eframe::App for App {
                 ui.radio_value(&mut self.newbackend_display, Backend::Legacy, "Legacy");
             });
             if ui.button("+").clicked() {
-                let newclient = Client::new(
+                match Client::new(
                     self.newclient_display.clone(),
                     self.newdevices_display.clone(),
                     self.newbackend_display.clone(),
                     self.newmita_display.clone(),
-                );
-                self.clientlist.push(newclient);
-            }
-            ui.group(|ui| {
-                self.clientlist.retain_mut(|x| x.is_alive());
-                for client in &mut self.clientlist {
-                    ui.horizontal(|ui| {
-                        ui.label(format!("Client {}", client.pid));
-                        ui.group(|ui| {
-                            ui.label(format!("Display: {}", client.display));
-                        });
-                        ui.group(|ui| {
-                            ui.label(format!("Devices: {}", client.devices));
-                        });
-                        ui.group(|ui| {
-                            ui.label(format!("Backend: {}", client.backend));
-                        });
-                        if ui.button("X").clicked() {
-                            client.kill();
-                        };
-                    });
+                ) {
+                    Ok(client) => self.clientlist.push(client),
+                    Err(err) => self.alertlist.push(err),
                 }
-            })
+            }
+            // TODO: make this a scrollable view
+            egui::ScrollArea::vertical().show(ui, |ui| {
+                ui.horizontal(|ui| {
+                    self.clientlist.retain_mut(|x| x.is_alive());
+                    for client in &mut self.clientlist {
+                        ui.group(|ui| {
+                            ui.label(format!("Client {}", client.pid));
+                            ui.group(|ui| {
+                                ui.label(format!("Display: {}", client.display));
+                            });
+                            ui.group(|ui| {
+                                ui.label(format!("Devices: {}", client.devices));
+                            });
+                            ui.group(|ui| {
+                                ui.label(format!("Backend: {}", client.backend));
+                            });
+                            if ui.button("X").clicked() {
+                                client.kill();
+                            };
+                        });
+                    }
+                });
+            });
         });
         if self.aboutwindow_visible {
             egui::Window::new("About").show(ctx, |ui| {

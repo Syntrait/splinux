@@ -1,9 +1,10 @@
 use enigo::{Direction, Enigo, Keyboard, Mouse, Settings};
-use evdev::{Device, KeyCode};
+use evdev::{Device, InputEvent, KeyCode, RelativeAxisCode};
 use std::{
     thread::{sleep, spawn, JoinHandle},
     time::Duration,
 };
+use x11rb::protocol::xproto::LENGTH_ERROR;
 
 fn evdev_to_char(key: KeyCode) -> Option<char> {
     match key {
@@ -98,6 +99,7 @@ fn evdev_to_enigo_key(key: KeyCode) -> Option<enigo::Key> {
         KeyCode::KEY_F11 => return Some(enigo::Key::F11),
         KeyCode::KEY_F12 => return Some(enigo::Key::F12),
 
+        // TODO: implement mouse buttons too
         _ => {}
     }
 
@@ -133,9 +135,12 @@ pub fn client(devices: String, display: String, mita: bool) {
 
             loop {
                 for e in device.fetch_events().unwrap() {
-                    // TODO: implement mouse move, key presses, mouse scroll, and gamepad
+                    // TODO: implement mouse move, key presses, mouse scroll
                     match e.destructure() {
                         evdev::EventSummary::Key(_, code, value) => {
+                            if value == 2 {
+                                continue;
+                            }
                             if value == 1 {
                                 if mita {
                                     enigo
@@ -150,19 +155,82 @@ pub fn client(devices: String, display: String, mita: bool) {
                                             .key(enigo::Key::Unicode(char), Direction::Press)
                                             .unwrap();
                                     } else {
+                                        match code {
+                                            KeyCode::BTN_LEFT => {
+                                                enigo
+                                                    .button(enigo::Button::Left, Direction::Press)
+                                                    .unwrap();
+                                            }
+                                            // right click is acting sus
+                                            KeyCode::BTN_RIGHT => {
+                                                enigo
+                                                    .button(enigo::Button::Right, Direction::Press)
+                                                    .unwrap();
+                                            }
+                                            KeyCode::BTN_MIDDLE => {
+                                                enigo
+                                                    .button(enigo::Button::Middle, Direction::Press)
+                                                    .unwrap();
+                                            }
+                                            // mouse button 4/5
+                                            x => {
+                                                println!("{:#?}", x);
+                                            }
+
+                                            _ => {}
+                                        }
                                     }
                                 }
-                            } else if value == 0 {
+                            } else {
                                 if let Some(char) = evdev_to_char(code) {
                                     enigo
                                         .key(enigo::Key::Unicode(char), Direction::Release)
                                         .unwrap();
+                                } else {
+                                    match code {
+                                        KeyCode::BTN_LEFT => {
+                                            enigo
+                                                .button(enigo::Button::Left, Direction::Release)
+                                                .unwrap();
+                                        }
+                                        KeyCode::BTN_RIGHT => {
+                                            enigo
+                                                .button(enigo::Button::Right, Direction::Release)
+                                                .unwrap();
+                                        }
+                                        KeyCode::BTN_MIDDLE => {
+                                            enigo
+                                                .button(enigo::Button::Middle, Direction::Release)
+                                                .unwrap();
+                                        }
+                                        x => {
+                                            println!("{:#?}", x);
+                                        }
+
+                                        _ => {}
+                                    }
                                 }
                             }
                         }
                         evdev::EventSummary::RelativeAxis(_, code, value) => {
-                            // TODO: mouse implementation
-                            println!("code: {:#?}, value: {:#?}", code, value);
+                            // TODO: sensitivity implementation
+                            // TODO: scroll not working?? or working??
+                            match code {
+                                RelativeAxisCode::REL_X => {
+                                    enigo.move_mouse(value, 0, enigo::Coordinate::Rel).unwrap()
+                                }
+                                RelativeAxisCode::REL_Y => {
+                                    enigo.move_mouse(0, value, enigo::Coordinate::Rel).unwrap()
+                                }
+                                RelativeAxisCode::REL_WHEEL => {
+                                    enigo.scroll(1, enigo::Axis::Vertical).unwrap();
+                                }
+
+                                x => {
+                                    println!("{:#?}", x);
+                                }
+                            }
+                            println!("code: {:#?}, code.0: {}, value: {:#?}", code, code.0, value);
                         }
                         _ => {}
                     }

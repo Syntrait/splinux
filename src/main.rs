@@ -15,9 +15,6 @@ use types::Backend;
 - Gamescope is not a hard dependency anymore
 - Input sending is now handled by Enigo
 - Proper command line argument parsing
-- Support for multiple gamepads
-
-
 */
 
 fn main() {
