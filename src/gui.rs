@@ -1,5 +1,10 @@
+use std::{thread::sleep, time::Duration};
+
 use crate::types::{Backend, Client};
 use eframe::egui;
+use enigo::{Enigo, Keyboard, Settings};
+
+// TODO: do all the launching, save file location spoofing, etc. from the program
 
 struct App {
     // TODO: dont forget to tell the user what's wrong with the arguments
@@ -82,9 +87,24 @@ impl eframe::App for App {
                     Err(err) => self.alertlist.push(err),
                 }
             }
-            // TODO: make this a scrollable view
-            egui::ScrollArea::vertical().show(ui, |ui| {
-                ui.horizontal(|ui| {
+            // TODO: programming horror below, remove later
+            if ui.button("hello").clicked() {
+                sleep(Duration::from_secs(5));
+                let mut sett = Settings::default();
+                sett.x11_display = None;
+                sett.wayland_display = Some("wayland-2".to_owned());
+                let mut enigo = Enigo::new(&sett).unwrap();
+                enigo
+                    .key(enigo::Key::Unicode('a'), enigo::Direction::Press)
+                    .unwrap();
+                sleep(Duration::from_secs(1));
+                enigo
+                    .key(enigo::Key::Unicode('a'), enigo::Direction::Release)
+                    .unwrap();
+            }
+            // TODO: make this a scrollable view (and make it look good)
+            egui::ScrollArea::both().show(ui, |ui| {
+                ui.vertical(|ui| {
                     self.clientlist.retain_mut(|x| x.is_alive());
                     for client in &mut self.clientlist {
                         ui.group(|ui| {

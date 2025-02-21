@@ -1,14 +1,10 @@
 use enigo::{Direction, Enigo, Keyboard, Mouse, Settings};
 use evdev::{Device, InputEvent, KeyCode, RelativeAxisCode};
-use std::{
-    thread::{sleep, spawn, JoinHandle},
-    time::Duration,
-};
-use x11rb::protocol::xproto::LENGTH_ERROR;
+use std::thread::{spawn, JoinHandle};
 
 fn evdev_to_char(key: KeyCode) -> Option<char> {
     match key {
-        // TODO: Gamepad?
+        // TODO: bindings are mixed for SDL2 applications for some reason (enigo issue?)
         KeyCode::KEY_A => return Some('a'),
         KeyCode::KEY_B => return Some('b'),
         KeyCode::KEY_C => return Some('c'),
@@ -99,13 +95,13 @@ fn evdev_to_enigo_key(key: KeyCode) -> Option<enigo::Key> {
         KeyCode::KEY_F11 => return Some(enigo::Key::F11),
         KeyCode::KEY_F12 => return Some(enigo::Key::F12),
 
-        // TODO: implement mouse buttons too
         _ => {}
     }
 
     None
 }
 
+// TODO: try uinput again for another backend?
 pub fn client(devices: String, display: String, mita: bool) {
     let mut settings = Settings::default();
     if display.contains(":") {
@@ -139,6 +135,7 @@ pub fn client(devices: String, display: String, mita: bool) {
                     match e.destructure() {
                         evdev::EventSummary::Key(_, code, value) => {
                             if value == 2 {
+                                // hold event, we dont care about them
                                 continue;
                             }
                             if value == 1 {
@@ -154,6 +151,8 @@ pub fn client(devices: String, display: String, mita: bool) {
                                         enigo
                                             .key(enigo::Key::Unicode(char), Direction::Press)
                                             .unwrap();
+                                    } else if let Some(key) = evdev_to_enigo_key(code) {
+                                        enigo.key(key, Direction::Press).unwrap();
                                     } else {
                                         match code {
                                             KeyCode::BTN_LEFT => {
@@ -162,6 +161,8 @@ pub fn client(devices: String, display: String, mita: bool) {
                                                     .unwrap();
                                             }
                                             // right click is acting sus
+                                            // update: steam ui listens to raw keyboard and mouse inputs, even though its grabbed by another program?
+                                            // thats weird, i show up as idle if i dont switch to it in a while, though...
                                             KeyCode::BTN_RIGHT => {
                                                 enigo
                                                     .button(enigo::Button::Right, Direction::Press)
@@ -172,7 +173,7 @@ pub fn client(devices: String, display: String, mita: bool) {
                                                     .button(enigo::Button::Middle, Direction::Press)
                                                     .unwrap();
                                             }
-                                            // mouse button 4/5
+                                            // TODO: mouse button 4/5
                                             x => {
                                                 println!("{:#?}", x);
                                             }
@@ -186,6 +187,8 @@ pub fn client(devices: String, display: String, mita: bool) {
                                     enigo
                                         .key(enigo::Key::Unicode(char), Direction::Release)
                                         .unwrap();
+                                } else if let Some(key) = evdev_to_enigo_key(code) {
+                                    enigo.key(key, Direction::Release).unwrap();
                                 } else {
                                     match code {
                                         KeyCode::BTN_LEFT => {
@@ -230,7 +233,6 @@ pub fn client(devices: String, display: String, mita: bool) {
                                     println!("{:#?}", x);
                                 }
                             }
-                            println!("code: {:#?}, code.0: {}, value: {:#?}", code, code.0, value);
                         }
                         _ => {}
                     }
