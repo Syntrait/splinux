@@ -34,11 +34,51 @@ pub fn client(devices: String) {
             loop {
                 for e in device.fetch_events().unwrap() {
                     match e.destructure() {
-                        evdev::EventSummary::Key(keyevent, keycode, x) => {
-                            println!(
-                                "keyevent: {:#?}, keycode: {:#?}, x: {:#?}",
-                                keyevent, keycode, x
-                            );
+                        evdev::EventSummary::Key(_, keycode, x) => {
+                            match keycode.0 {
+                                mbutton @ 272..=274 => {
+                                    conn.xtest_fake_input(
+                                        if x == 1 {
+                                            x11rb::protocol::xproto::BUTTON_PRESS_EVENT
+                                        } else {
+                                            x11rb::protocol::xproto::BUTTON_RELEASE_EVENT
+                                        },
+                                        match mbutton {
+                                            272 => 1, // LMB
+                                            273 => 3, // RMB
+                                            274 => 2, // MMB
+                                            _ => unreachable!(),
+                                        },
+                                        0,
+                                        NONE,
+                                        0,
+                                        0,
+                                        0,
+                                    )
+                                    .unwrap();
+                                }
+                                x => {
+                                    if x == 2 {
+                                        // constant hold events, we only care about start and stop
+                                        continue;
+                                    }
+                                    conn.xtest_fake_input(
+                                        if x == 1 {
+                                            x11rb::protocol::xproto::KEY_PRESS_EVENT
+                                        } else {
+                                            x11rb::protocol::xproto::KEY_RELEASE_EVENT
+                                        },
+                                        // if you add +8 to libinput key id, you get x11 key id for the corresponding key
+                                        x as u8 + 8,
+                                        0,
+                                        NONE,
+                                        0,
+                                        0,
+                                        0,
+                                    )
+                                    .unwrap();
+                                }
+                            }
                         }
                         evdev::EventSummary::RelativeAxis(_, code, value) => match code {
                             RelativeAxisCode::REL_X => {

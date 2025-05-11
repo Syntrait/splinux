@@ -5,13 +5,13 @@ edition = "2021"
 
 [dependencies]
 x11rb = { version = "0.13.1", features = ["xinput", "xtest"] }
-eframe = "0.31.0"
-evdev = "0.13.0"
+eframe = "0.31.1"
+evdev = "0.13.1"
 enigo = { version = "0.3.0", default-features = false, features = [
     "x11rb",
     "wayland",
 ] }
-clap = "4.5.29"
+clap = "4.5.38"
 
 [profile.release]
 strip = true

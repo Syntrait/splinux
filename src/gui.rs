@@ -76,14 +76,21 @@ impl eframe::App for App {
                 ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
                 ui.radio_value(&mut self.newbackend_display, Backend::Legacy, "Legacy");
             });
-            if ui.button("+").clicked() {
+            let add_button = ui.button("+");
+            if add_button.clicked() {
+                // lose focus, so space/enter doesn't spam click the add button
+                add_button.surrender_focus();
                 match Client::new(
                     self.newclient_display.clone(),
                     self.newdevices_display.clone(),
                     self.newbackend_display.clone(),
                     self.newmita_display.clone(),
                 ) {
-                    Ok(client) => self.clientlist.push(client),
+                    Ok(client) => {
+                        self.clientlist.push(client);
+                        // remove ghost clients
+                        ctx.request_repaint();
+                    }
                     Err(err) => self.alertlist.push(err),
                 }
             }
