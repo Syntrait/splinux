@@ -32,13 +32,8 @@ impl Display for Backend {
 }
 
 impl Client {
-    pub fn new(
-        display: String,
-        devices: String,
-        backend: Backend,
-        mita: bool,
-    ) -> Result<Self, String> {
-        if display.contains("wayland") && backend == Backend::Legacy {
+    pub fn new(display: String, devices: String, backend: Backend) -> Result<Self, String> {
+        if display.contains("-") && backend == Backend::Legacy {
             return Err("Legacy backend doesn't support Wayland".to_owned());
         }
 
@@ -70,9 +65,12 @@ impl Client {
                 } else {
                     "WAYLAND_DISPLAY"
                 },
-                display.clone(),
+                if display.contains(":") {
+                    display.as_str()
+                } else {
+                    display.as_str()
+                },
             )
-            .env(if mita { "mita" } else { "" }, if mita { "1" } else { "" })
             .spawn()
             .unwrap();
         let pid = proc.id();

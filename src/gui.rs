@@ -13,7 +13,6 @@ struct App {
     newclient_display: String,
     newdevices_display: String,
     newbackend_display: Backend,
-    newmita_display: bool,
     aboutwindow_visible: bool,
 }
 
@@ -34,7 +33,6 @@ impl Default for App {
             newclient_display: ":1".to_owned(),
             newdevices_display: "0,0".to_owned(),
             newbackend_display: Backend::Enigo,
-            newmita_display: false,
             aboutwindow_visible: false,
         }
     }
@@ -56,7 +54,9 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.label("Display:")
                     .on_hover_cursor(egui::CursorIcon::Help)
-                    .on_hover_text("The display ID to use. Eg. \"wayland-2\", \":30\" ");
+                    .on_hover_text(
+                        "The display ID to use. Eg. \"wayland-2\", \"gamescope-0\", \":30\" ",
+                    );
                 ui.add(
                     egui::TextEdit::singleline(&mut self.newclient_display).desired_width(250.0),
                 );
@@ -84,7 +84,6 @@ impl eframe::App for App {
                     self.newclient_display.clone(),
                     self.newdevices_display.clone(),
                     self.newbackend_display.clone(),
-                    self.newmita_display.clone(),
                 ) {
                     Ok(client) => {
                         self.clientlist.push(client);
@@ -99,7 +98,7 @@ impl eframe::App for App {
                 sleep(Duration::from_secs(5));
                 let mut sett = Settings::default();
                 sett.x11_display = None;
-                sett.wayland_display = Some("wayland-2".to_owned());
+                sett.wayland_display = Some("gamescope-0".to_owned());
                 let mut enigo = Enigo::new(&sett).unwrap();
                 enigo
                     .key(enigo::Key::Unicode('a'), enigo::Direction::Press)
@@ -127,6 +126,7 @@ impl eframe::App for App {
                             });
                             if ui.button("X").clicked() {
                                 client.kill();
+                                ctx.request_repaint();
                             };
                         });
                     }
@@ -135,7 +135,6 @@ impl eframe::App for App {
         });
         if self.aboutwindow_visible {
             egui::Window::new("About").show(ctx, |ui| {
-                ui.checkbox(&mut self.newmita_display, "🕯️💝");
                 ui.label("Splinux");
                 ui.label(format!(
                     "Version {}",

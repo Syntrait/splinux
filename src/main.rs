@@ -54,7 +54,7 @@ fn main() {
                     Arg::new("backend")
                         .short('b')
                         .long("backend")
-                        .help("the input sender backend, \"enigo\" or \"legacy\". default is enigo")
+                        .help("the input sender backend, \"enigo\" or \"legacy\"")
                         .action(ArgAction::Set)
                         .num_args(1)
                         .default_value("enigo"),
@@ -80,11 +80,7 @@ fn main() {
 
             match backend {
                 Backend::Enigo => {
-                    client(
-                        input.to_owned(),
-                        display.to_owned(),
-                        var_os("mita").is_some_and(|x| x == "1"),
-                    );
+                    client(input.to_owned(), display.to_owned());
                 }
                 Backend::Legacy => {
                     legacy_client(input.to_owned());

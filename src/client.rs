@@ -102,12 +102,12 @@ fn evdev_to_enigo_key(key: KeyCode) -> Option<enigo::Key> {
 }
 
 // TODO: try uinput again for another backend?
-pub fn client(devices: String, display: String, mita: bool) {
+pub fn client(devices: String, display: String) {
     let mut settings = Settings::default();
     if display.contains(":") {
-        settings.x11_display = Some(":11".to_owned());
+        settings.x11_display = Some(display.to_owned());
         settings.wayland_display = None;
-    } else if display.contains("wayland-") {
+    } else if display.contains("-") {
         settings.x11_display = None;
         settings.wayland_display = Some(display.to_owned());
     }
@@ -126,60 +126,48 @@ pub fn client(devices: String, display: String, mita: bool) {
                 println!("{}: {}", x.kind(), x.to_string());
             }
 
-            let mitav: Vec<char> = "Praying for you 🕯️ O Great Mita 💝\n".chars().collect();
-            let mut miterator = mitav.into_iter().cycle();
-
             loop {
                 for e in device.fetch_events().unwrap() {
                     // TODO: implement mouse move, key presses, mouse scroll
                     match e.destructure() {
                         evdev::EventSummary::Key(_, code, value) => {
                             if value == 2 {
-                                // hold event, we dont care about them
+                                // constant hold events, we only care about start and stop
                                 continue;
                             }
                             if value == 1 {
-                                if mita {
+                                if let Some(char) = evdev_to_char(code) {
                                     enigo
-                                        .key(
-                                            enigo::Key::Unicode(miterator.next().unwrap()),
-                                            Direction::Click,
-                                        )
+                                        .key(enigo::Key::Unicode(char), Direction::Press)
                                         .unwrap();
+                                } else if let Some(key) = evdev_to_enigo_key(code) {
+                                    enigo.key(key, Direction::Press).unwrap();
                                 } else {
-                                    if let Some(char) = evdev_to_char(code) {
-                                        enigo
-                                            .key(enigo::Key::Unicode(char), Direction::Press)
-                                            .unwrap();
-                                    } else if let Some(key) = evdev_to_enigo_key(code) {
-                                        enigo.key(key, Direction::Press).unwrap();
-                                    } else {
-                                        match code {
-                                            KeyCode::BTN_LEFT => {
-                                                enigo
-                                                    .button(enigo::Button::Left, Direction::Press)
-                                                    .unwrap();
-                                            }
-                                            // right click is acting sus
-                                            // update: steam ui listens to raw keyboard and mouse inputs, even though its grabbed by another program?
-                                            // thats weird, i show up as idle if i dont switch to it in a while, though...
-                                            KeyCode::BTN_RIGHT => {
-                                                enigo
-                                                    .button(enigo::Button::Right, Direction::Press)
-                                                    .unwrap();
-                                            }
-                                            KeyCode::BTN_MIDDLE => {
-                                                enigo
-                                                    .button(enigo::Button::Middle, Direction::Press)
-                                                    .unwrap();
-                                            }
-                                            // TODO: mouse button 4/5
-                                            x => {
-                                                println!("{:#?}", x);
-                                            }
-
-                                            _ => {}
+                                    match code {
+                                        KeyCode::BTN_LEFT => {
+                                            enigo
+                                                .button(enigo::Button::Left, Direction::Press)
+                                                .unwrap();
                                         }
+                                        // right click is acting sus
+                                        // update: steam ui listens to raw keyboard and mouse inputs, even though its grabbed by another program?
+                                        // thats weird, i show up as idle if i dont switch to it in a while, though...
+                                        KeyCode::BTN_RIGHT => {
+                                            enigo
+                                                .button(enigo::Button::Right, Direction::Press)
+                                                .unwrap();
+                                        }
+                                        KeyCode::BTN_MIDDLE => {
+                                            enigo
+                                                .button(enigo::Button::Middle, Direction::Press)
+                                                .unwrap();
+                                        }
+                                        // TODO: mouse button 4/5
+                                        x => {
+                                            println!("{:#?}", x);
+                                        }
+
+                                        _ => {}
                                     }
                                 }
                             } else {

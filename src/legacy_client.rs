@@ -8,7 +8,11 @@ use std::{
 };
 use x11rb::{
     connection::Connection,
-    protocol::{xproto::ConnectionExt as xproto_ext, xtest::ConnectionExt as xtest_ext},
+    protocol::{
+        xinput::ConnectionExt,
+        xproto::{ConnectionExt as xproto_ext, MOTION_NOTIFY_EVENT},
+        xtest::ConnectionExt as xtest_ext,
+    },
     rust_connection::RustConnection,
 };
 
@@ -31,6 +35,8 @@ pub fn client(devices: String) {
                 println!("Couldn't grab the input device, continuing anyways.");
                 println!("{}: {}", x.kind(), x.to_string());
             }
+
+            let mut lastroot_x = 0;
             loop {
                 for e in device.fetch_events().unwrap() {
                     match e.destructure() {
@@ -84,8 +90,67 @@ pub fn client(devices: String) {
                             RelativeAxisCode::REL_X => {
                                 let curpos = conn.query_pointer(window).unwrap().reply().unwrap();
 
+                                if curpos.root_x != lastroot_x {
+                                    lastroot_x = curpos.root_x;
+                                    println!("fps mode??");
+
+                                    conn.xtest_fake_input(
+                                        x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
+                                        0,
+                                        0,
+                                        NONE,
+                                        value as i16,
+                                        0,
+                                        0,
+                                    )
+                                    .unwrap();
+                                }
+
+                                println!(
+                                    "x = {}\ny = {}\nsame_screen = {}",
+                                    curpos.root_x, curpos.root_y, curpos.same_screen
+                                );
+
                                 conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, value as i16, 0)
                                     .unwrap();
+
+                                //conn.flush().unwrap();
+
+                                /*
+                                 *
+                                //let curpos2 = conn.query_pointer(window).unwrap().reply().unwrap();
+
+                                println!(
+                                    "x = {}\ny = {}\nsame_screen = {}",
+                                    curpos2.root_x, curpos2.root_y, curpos2.same_screen
+                                );
+
+                                if curpos.root_x == curpos2.root_x {
+                                    println!("fps mode??");
+                                }
+                                */
+
+                                /*
+                                conn.xtest_fake_input(
+                                    x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
+                                    0,
+                                    0,
+                                    NONE,
+                                    value as i16,
+                                    0,
+                                    0,
+                                )
+                                .unwrap();
+                                */
+
+                                //conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, curpos.root_x, 0)
+                                //    .unwrap();
+
+                                //x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
+                                //x11rb::protocol::xinput::DEVICE_MOTION_NOTIFY_EVENT
+                                //x11rb::protocol::xproto::MOTION
+
+                                /*
 
                                 let curpos2 = conn.query_pointer(window).unwrap().reply().unwrap();
 
@@ -101,8 +166,11 @@ pub fn client(devices: String) {
                                     )
                                     .unwrap();
                                 }
+                                */
                             }
                             RelativeAxisCode::REL_Y => {
+                                /*
+
                                 let curpos = conn.query_pointer(window).unwrap().reply().unwrap();
 
                                 conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, 0, value as i16)
@@ -122,6 +190,7 @@ pub fn client(devices: String) {
                                     )
                                     .unwrap();
                                 }
+                                */
                             }
                             RelativeAxisCode::REL_WHEEL => {
                                 conn.xtest_fake_input(
