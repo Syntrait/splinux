@@ -121,6 +121,7 @@ pub fn client(devices: String, display: String) {
         let settings = settings.clone();
         let handle: JoinHandle<()> = spawn(move || {
             let mut enigo = Enigo::new(&settings).unwrap();
+            // TODO: figure out why device grab fails without an error
             if let Err(x) = device.grab() {
                 println!("Couldn't grab the input device, continuing anyways.");
                 println!("{}: {}", x.kind(), x.to_string());
@@ -152,6 +153,7 @@ pub fn client(devices: String, display: String) {
                                         // right click is acting sus
                                         // update: steam ui listens to raw keyboard and mouse inputs, even though its grabbed by another program?
                                         // thats weird, i show up as idle if i dont switch to it in a while, though...
+                                        // probably related to Xwayland, but needs further testing
                                         KeyCode::BTN_RIGHT => {
                                             enigo
                                                 .button(enigo::Button::Right, Direction::Press)

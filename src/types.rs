@@ -1,3 +1,4 @@
+use flume::Sender;
 use std::{
     env::args,
     fmt::Display,
@@ -7,6 +8,11 @@ use std::{
 pub const REL_X: u16 = 0;
 pub const REL_Y: u16 = 1;
 pub const REL_WHEEL: u16 = 8;
+
+pub enum StateCommand {
+    ToggleFPSMode,
+    GetFPSMode(Sender<bool>),
+}
 
 pub struct Client {
     pub pid: u32,

@@ -10,13 +10,6 @@ use legacy_client::client as legacy_client;
 use std::env::{args, var_os};
 use types::Backend;
 
-/*
-- Native Wayland is now supported
-- Gamescope is not a hard dependency anymore
-- Input sending is now handled by Enigo
-- Proper command line argument parsing
-*/
-
 fn main() {
     let args1: Vec<String> = args().collect();
     if args1.len() == 1 {

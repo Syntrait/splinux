@@ -12,6 +12,7 @@ enigo = { version = "0.3.0", default-features = false, features = [
     "wayland",
 ] }
 clap = "4.5.38"
+flume = "0.11.1"
 
 [profile.release]
 strip = true

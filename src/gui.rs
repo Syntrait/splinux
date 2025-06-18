@@ -32,7 +32,7 @@ impl Default for App {
             clientlist: vec![],
             newclient_display: ":1".to_owned(),
             newdevices_display: "0,0".to_owned(),
-            newbackend_display: Backend::Enigo,
+            newbackend_display: Backend::Legacy,
             aboutwindow_visible: false,
         }
     }
@@ -72,7 +72,9 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.label("Backend:")
                     .on_hover_cursor(egui::CursorIcon::Help)
-                    .on_hover_text("The backend (input sender) to use. Enigo recommended.");
+                    .on_hover_text(
+                        "The backend (input sender) to use. Enigo is currently experimental.",
+                    );
                 ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
                 ui.radio_value(&mut self.newbackend_display, Backend::Legacy, "Legacy");
             });
@@ -108,7 +110,6 @@ impl eframe::App for App {
                     .key(enigo::Key::Unicode('a'), enigo::Direction::Release)
                     .unwrap();
             }
-            // TODO: make this a scrollable view (and make it look good)
             egui::ScrollArea::both().show(ui, |ui| {
                 ui.vertical(|ui| {
                     self.clientlist.retain_mut(|x| x.is_alive());
@@ -126,6 +127,7 @@ impl eframe::App for App {
                             });
                             if ui.button("X").clicked() {
                                 client.kill();
+                                // remove ghost clients
                                 ctx.request_repaint();
                             };
                         });

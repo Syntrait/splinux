@@ -1,6 +1,7 @@
-use crate::types::{REL_WHEEL, REL_X, REL_Y};
+use crate::types::{StateCommand, REL_WHEEL, REL_X, REL_Y};
 use eframe::glow::NONE;
 use evdev::{Device, KeyCode, RelativeAxisCode};
+use flume::{unbounded, Selector};
 use std::{
     process,
     thread::{sleep, spawn, JoinHandle},
@@ -9,7 +10,8 @@ use std::{
 use x11rb::{
     connection::Connection,
     protocol::{
-        xinput::ConnectionExt,
+        xfixes::ConnectionExt as xfixescext,
+        xinput::{list_input_devices, ConnectionExt, DeviceInfo, DeviceUse},
         xproto::{ConnectionExt as xproto_ext, MOTION_NOTIFY_EVENT},
         xtest::ConnectionExt as xtest_ext,
     },
@@ -20,14 +22,31 @@ pub fn client(devices: String) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
     let mut handles: Vec<JoinHandle<()>> = vec![];
 
+    let (tx, rx) = unbounded::<StateCommand>();
+
+    let state_handle = spawn(move || {
+        let mut fpsmode = false;
+        loop {
+            match rx.recv() {
+                Ok(x) => match x {
+                    StateCommand::ToggleFPSMode => {
+                        fpsmode = !fpsmode;
+                    }
+                    StateCommand::GetFPSMode(callback) => {
+                        callback.send(fpsmode).unwrap();
+                    }
+                },
+                Err(_) => break,
+            }
+        }
+    });
+
     for device_num in dev_nums {
         let mut device = Device::open(format!("/dev/input/event{}", device_num)).unwrap();
+        let tx = tx.clone();
 
         let handle = spawn(move || {
-            let (conn, screen_num) = RustConnection::connect(None).unwrap_or_else(|x| {
-                eprintln!("{}", x);
-                process::exit(1);
-            });
+            let (conn, screen_num) = RustConnection::connect(None).unwrap();
             let screen = &conn.setup().roots[screen_num];
             let window = screen.root;
 
@@ -36,7 +55,6 @@ pub fn client(devices: String) {
                 println!("{}: {}", x.kind(), x.to_string());
             }
 
-            let mut lastroot_x = 0;
             loop {
                 for e in device.fetch_events().unwrap() {
                     match e.destructure() {
@@ -88,12 +106,11 @@ pub fn client(devices: String) {
                         }
                         evdev::EventSummary::RelativeAxis(_, code, value) => match code {
                             RelativeAxisCode::REL_X => {
-                                let curpos = conn.query_pointer(window).unwrap().reply().unwrap();
+                                let (mstx, msrx) = flume::bounded::<bool>(0);
+                                tx.send(StateCommand::GetFPSMode(mstx)).unwrap();
+                                let fpslock = msrx.recv().unwrap();
 
-                                if curpos.root_x != lastroot_x {
-                                    lastroot_x = curpos.root_x;
-                                    println!("fps mode??");
-
+                                if fpslock {
                                     conn.xtest_fake_input(
                                         x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
                                         0,
@@ -104,69 +121,13 @@ pub fn client(devices: String) {
                                         0,
                                     )
                                     .unwrap();
+                                } else {
+                                    let curpos =
+                                        conn.query_pointer(window).unwrap().reply().unwrap();
+                                    let (x, y) = (curpos.root_x, curpos.root_y);
+                                    conn.warp_pointer(NONE, NONE, x, y, 0, 0, value as i16, 0)
+                                        .unwrap();
                                 }
-
-                                println!(
-                                    "x = {}\ny = {}\nsame_screen = {}",
-                                    curpos.root_x, curpos.root_y, curpos.same_screen
-                                );
-
-                                conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, value as i16, 0)
-                                    .unwrap();
-
-                                //conn.flush().unwrap();
-
-                                /*
-                                 *
-                                //let curpos2 = conn.query_pointer(window).unwrap().reply().unwrap();
-
-                                println!(
-                                    "x = {}\ny = {}\nsame_screen = {}",
-                                    curpos2.root_x, curpos2.root_y, curpos2.same_screen
-                                );
-
-                                if curpos.root_x == curpos2.root_x {
-                                    println!("fps mode??");
-                                }
-                                */
-
-                                /*
-                                conn.xtest_fake_input(
-                                    x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
-                                    0,
-                                    0,
-                                    NONE,
-                                    value as i16,
-                                    0,
-                                    0,
-                                )
-                                .unwrap();
-                                */
-
-                                //conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, curpos.root_x, 0)
-                                //    .unwrap();
-
-                                //x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
-                                //x11rb::protocol::xinput::DEVICE_MOTION_NOTIFY_EVENT
-                                //x11rb::protocol::xproto::MOTION
-
-                                /*
-
-                                let curpos2 = conn.query_pointer(window).unwrap().reply().unwrap();
-
-                                if curpos.root_x == curpos2.root_x {
-                                    conn.xtest_fake_input(
-                                        x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
-                                        0,
-                                        0,
-                                        NONE,
-                                        value as i16,
-                                        0,
-                                        0,
-                                    )
-                                    .unwrap();
-                                }
-                                */
                             }
                             RelativeAxisCode::REL_Y => {
                                 /*
