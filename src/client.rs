@@ -1,5 +1,5 @@
 use enigo::{Direction, Enigo, Keyboard, Mouse, Settings};
-use evdev::{Device, InputEvent, KeyCode, RelativeAxisCode};
+use evdev::{Device, KeyCode, RelativeAxisCode};
 use std::thread::{spawn, JoinHandle};
 
 fn evdev_to_char(key: KeyCode) -> Option<char> {

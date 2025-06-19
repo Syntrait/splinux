@@ -7,7 +7,7 @@ use clap::{Arg, ArgAction, Command};
 use client::client;
 use gui::start;
 use legacy_client::client as legacy_client;
-use std::env::{args, var_os};
+use std::env::args;
 use types::Backend;
 
 fn main() {

@@ -2,11 +2,7 @@ use crate::types::{StateCommand, REL_WHEEL, REL_X, REL_Y};
 use eframe::glow::NONE;
 use evdev::{Device, KeyCode, RelativeAxisCode};
 use flume::{unbounded, Selector};
-use std::{
-    process,
-    thread::{sleep, spawn, JoinHandle},
-    time::Duration,
-};
+use std::thread::{spawn, JoinHandle};
 use x11rb::{
     connection::Connection,
     protocol::{
@@ -81,7 +77,7 @@ pub fn client(devices: String) {
                                     )
                                     .unwrap();
                                 }
-                                x => {
+                                y => {
                                     if x == 2 {
                                         // constant hold events, we only care about start and stop
                                         continue;
@@ -93,7 +89,7 @@ pub fn client(devices: String) {
                                             x11rb::protocol::xproto::KEY_RELEASE_EVENT
                                         },
                                         // if you add +8 to libinput key id, you get x11 key id for the corresponding key
-                                        x as u8 + 8,
+                                        y as u8 + 8,
                                         0,
                                         NONE,
                                         0,
