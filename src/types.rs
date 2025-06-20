@@ -4,6 +4,8 @@ use std::{
     process::{Child, Command},
 };
 
+use thiserror::Error;
+
 pub const BTN_SOUTH: u16 = 304; // A
 pub const BTN_EAST: u16 = 305; // B
 pub const BTN_NORTH: u16 = 307; // X
@@ -24,6 +26,14 @@ pub enum DeviceType {
     Mouse,
     Gamepad,
     Unknown,
+}
+
+#[derive(Debug, Error)]
+pub enum ClientError {
+    #[error("Couldn't open the X11 DISPLAY")]
+    X11DisplayOpenError,
+    #[error("Relative mouse movement failed")]
+    RelativeMovementFail,
 }
 
 pub struct Client {
