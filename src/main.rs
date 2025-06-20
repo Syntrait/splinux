@@ -1,12 +1,12 @@
 mod client;
 mod gui;
-mod legacy_client;
+mod native_client;
 mod types;
 
 use clap::{Arg, ArgAction, Command};
 use client::client;
 use gui::start;
-use legacy_client::client as legacy_client;
+use native_client::client as nativeclient;
 use std::env::args;
 use types::Backend;
 
@@ -47,10 +47,10 @@ fn main() {
                     Arg::new("backend")
                         .short('b')
                         .long("backend")
-                        .help("the input sender backend, \"enigo\" or \"legacy\"")
+                        .help("the input sender backend, \"native\" or \"enigo\"")
                         .action(ArgAction::Set)
                         .num_args(1)
-                        .default_value("legacy"),
+                        .default_value("native"),
                 ),
         )
         .get_matches();
@@ -64,19 +64,19 @@ fn main() {
             let input: &String = x.get_one("input").unwrap();
             let backend: Backend = if x
                 .get_one("backend")
-                .is_some_and(|x: &String| x.to_lowercase() == "legacy")
+                .is_some_and(|x: &String| x.to_lowercase() == "native")
             {
-                Backend::Legacy
+                Backend::Native
             } else {
                 Backend::Enigo
             };
 
             match backend {
+                Backend::Native => {
+                    nativeclient(input.to_owned());
+                }
                 Backend::Enigo => {
                     client(input.to_owned(), display.to_owned());
-                }
-                Backend::Legacy => {
-                    legacy_client(input.to_owned());
                 }
             }
         }

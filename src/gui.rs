@@ -29,7 +29,7 @@ impl Default for App {
             clientlist: vec![],
             newclient_display: ":1".to_owned(),
             newdevices_display: "0,0".to_owned(),
-            newbackend_display: Backend::Legacy,
+            newbackend_display: Backend::Native,
             aboutwindow_visible: false,
         }
     }
@@ -73,7 +73,7 @@ impl eframe::App for App {
                         "The backend (input sender) to use. Enigo is currently experimental.",
                     );
                 ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
-                ui.radio_value(&mut self.newbackend_display, Backend::Legacy, "Legacy");
+                ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
             });
             let add_button = ui.button("+");
             if add_button.clicked() {

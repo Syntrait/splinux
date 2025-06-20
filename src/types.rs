@@ -47,22 +47,22 @@ pub struct Client {
 #[derive(PartialEq, Clone)]
 pub enum Backend {
     Enigo,
-    Legacy,
+    Native,
 }
 
 impl Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Backend::Enigo => write!(f, "Enigo"),
-            Backend::Legacy => write!(f, "Legacy"),
+            Backend::Native => write!(f, "Native"),
         }
     }
 }
 
 impl Client {
     pub fn new(display: String, devices: String, backend: Backend) -> Result<Self, String> {
-        if display.contains("-") && backend == Backend::Legacy {
-            return Err("Legacy backend doesn't support Wayland".to_owned());
+        if display.contains("-") && backend == Backend::Native {
+            return Err("Native backend doesn't support Wayland".to_owned());
         }
 
         let args: Vec<String> = args().collect();
@@ -77,14 +77,14 @@ impl Client {
                     "-b",
                     "enigo",
                 ],
-                Backend::Legacy => [
+                Backend::Native => [
                     "run",
                     "-d",
                     display.as_str(),
                     "-i",
                     devices.as_str(),
                     "-b",
-                    "legacy",
+                    "native",
                 ],
             })
             .env(
