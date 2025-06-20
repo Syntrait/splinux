@@ -1,18 +1,71 @@
-use crate::types::{StateCommand, REL_WHEEL, REL_X, REL_Y};
+use crate::types::{
+    DeviceType, StateCommand, BTN_EAST, BTN_NORTH, BTN_SOUTH, BTN_THUMBL, BTN_THUMBR, BTN_TL,
+    BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, LEFT_PTR, LEFT_PTR_MASK,
+};
 use eframe::glow::NONE;
-use evdev::{Device, KeyCode, RelativeAxisCode};
-use flume::{unbounded, Selector};
-use std::thread::{spawn, JoinHandle};
+use evdev::{Device, RelativeAxisCode};
+use flume::unbounded;
+#[cfg(feature = "xtst")]
+use libc::{c_char, c_int, c_ulong};
+use std::{
+    panic,
+    thread::{spawn, JoinHandle},
+    u16,
+};
+use uinput::event::{self, controller::GamePad, Controller};
 use x11rb::{
     connection::Connection,
     protocol::{
-        xfixes::ConnectionExt as xfixescext,
-        xinput::{list_input_devices, ConnectionExt, DeviceInfo, DeviceUse},
-        xproto::{ConnectionExt as xproto_ext, MOTION_NOTIFY_EVENT},
+        xproto::{ChangeWindowAttributesAux, Coloritem, ConnectionExt, CreateGCAux, Rectangle},
         xtest::ConnectionExt as xtest_ext,
     },
     rust_connection::RustConnection,
 };
+
+#[cfg(feature = "xtst")]
+#[link(name = "X11")]
+unsafe extern "C" {
+    fn XOpenDisplay(display_name: *mut c_char) -> *mut Display;
+    fn XCloseDisplay(display: *mut Display) -> c_int;
+}
+
+#[cfg(feature = "xtst")]
+#[link(name = "Xtst")]
+unsafe extern "C" {
+    fn XTestFakeRelativeMotionEvent(
+        display: *mut Display,
+        x: c_int,
+        y: c_int,
+        time: c_ulong,
+    ) -> c_int;
+    fn XFlush(display: *mut Display);
+}
+
+#[cfg(feature = "xtst")]
+#[repr(C)]
+struct Display {
+    _private: *mut (),
+}
+
+fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
+    uinput::Event::Controller(Controller::GamePad(match keyid {
+        BTN_SOUTH => GamePad::A,
+        BTN_EAST => GamePad::B,
+        BTN_NORTH => GamePad::X,
+        BTN_WEST => GamePad::Y,
+
+        BTN_TL => GamePad::TL,
+        BTN_TR => GamePad::TR,
+
+        BTN_TL2 => GamePad::TL2,
+        BTN_TR2 => GamePad::TR2,
+
+        BTN_THUMBL => GamePad::ThumbL,
+        BTN_THUMBR => GamePad::ThumbR,
+
+        _ => GamePad::Mode,
+    }))
+}
 
 pub fn client(devices: String) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
@@ -20,7 +73,7 @@ pub fn client(devices: String) {
 
     let (tx, rx) = unbounded::<StateCommand>();
 
-    let state_handle = spawn(move || {
+    spawn(move || {
         let mut fpsmode = false;
         loop {
             match rx.recv() {
@@ -42,9 +95,12 @@ pub fn client(devices: String) {
         let tx = tx.clone();
 
         let handle = spawn(move || {
-            let (conn, screen_num) = RustConnection::connect(None).unwrap();
-            let screen = &conn.setup().roots[screen_num];
-            let window = screen.root;
+            let (conn, _) = RustConnection::connect(None).unwrap();
+
+            let mut devtype = DeviceType::Unknown;
+            let mut configured = false;
+            let mut uinputdevice: Option<uinput::Device> = None;
+            let mut display: Option<*mut Display> = None;
 
             if let Err(x) = device.grab() {
                 println!("Couldn't grab the input device, continuing anyways.");
@@ -52,13 +108,43 @@ pub fn client(devices: String) {
             }
 
             loop {
+                if !configured && devtype != DeviceType::Unknown {
+                    configured = true;
+                    if devtype == DeviceType::Gamepad {
+                        uinputdevice = Some(
+                            uinput::default()
+                                .unwrap()
+                                .name("Virtual Gamepad")
+                                .unwrap()
+                                .event(event::Controller::All)
+                                .unwrap()
+                                .create()
+                                .unwrap(),
+                        );
+                    } else if devtype == DeviceType::Mouse {
+                        #[cfg(feature = "xtst")]
+                        {
+                            unsafe {
+                                let mut null: c_char = 0;
+                                display = Some(XOpenDisplay(&mut null));
+                                if let Some(display) = display.as_mut() {
+                                    if display.is_null() {
+                                        panic!("Failed to open DISPLAY");
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+                // TODO: structify this mess
                 for e in device.fetch_events().unwrap() {
                     match e.destructure() {
-                        evdev::EventSummary::Key(_, keycode, x) => {
+                        evdev::EventSummary::Key(_, keycode, keystate) => {
                             match keycode.0 {
                                 mbutton @ 272..=274 => {
+                                    devtype = DeviceType::Mouse;
                                     conn.xtest_fake_input(
-                                        if x == 1 {
+                                        if keystate == 1 {
                                             x11rb::protocol::xproto::BUTTON_PRESS_EVENT
                                         } else {
                                             x11rb::protocol::xproto::BUTTON_RELEASE_EVENT
@@ -76,20 +162,38 @@ pub fn client(devices: String) {
                                         0,
                                     )
                                     .unwrap();
+
+                                    conn.flush().unwrap();
                                 }
-                                y => {
-                                    if x == 2 {
+                                gamepadbutton @ 304..=318 => {
+                                    devtype = DeviceType::Gamepad;
+                                    if !configured {
+                                        continue;
+                                    };
+                                    if let Some(dev) = uinputdevice.as_mut() {
+                                        dev.send(
+                                            libinput_key_to_uinput_event(gamepadbutton),
+                                            keystate,
+                                        )
+                                        .unwrap();
+
+                                        dev.synchronize().unwrap();
+                                    }
+                                }
+                                keyid => {
+                                    if keystate == 2 {
                                         // constant hold events, we only care about start and stop
                                         continue;
                                     }
+                                    devtype = DeviceType::Keyboard;
                                     conn.xtest_fake_input(
-                                        if x == 1 {
+                                        if keystate == 1 {
                                             x11rb::protocol::xproto::KEY_PRESS_EVENT
                                         } else {
                                             x11rb::protocol::xproto::KEY_RELEASE_EVENT
                                         },
                                         // if you add +8 to libinput key id, you get x11 key id for the corresponding key
-                                        y as u8 + 8,
+                                        keyid as u8 + 8,
                                         0,
                                         NONE,
                                         0,
@@ -97,59 +201,72 @@ pub fn client(devices: String) {
                                         0,
                                     )
                                     .unwrap();
+
+                                    conn.flush().unwrap();
                                 }
                             }
                         }
                         evdev::EventSummary::RelativeAxis(_, code, value) => match code {
                             RelativeAxisCode::REL_X => {
-                                let (mstx, msrx) = flume::bounded::<bool>(0);
-                                tx.send(StateCommand::GetFPSMode(mstx)).unwrap();
-                                let fpslock = msrx.recv().unwrap();
-
-                                if fpslock {
-                                    conn.xtest_fake_input(
-                                        x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
-                                        0,
-                                        0,
-                                        NONE,
-                                        value as i16,
-                                        0,
-                                        0,
-                                    )
-                                    .unwrap();
-                                } else {
-                                    let curpos =
-                                        conn.query_pointer(window).unwrap().reply().unwrap();
-                                    let (x, y) = (curpos.root_x, curpos.root_y);
-                                    conn.warp_pointer(NONE, NONE, x, y, 0, 0, value as i16, 0)
+                                devtype = DeviceType::Mouse;
+                                if !configured {
+                                    continue;
+                                }
+                                #[cfg(feature = "xtst")]
+                                {
+                                    if let Some(display) = display.as_mut() {
+                                        unsafe {
+                                            let display = display.to_owned();
+                                            let success =
+                                                XTestFakeRelativeMotionEvent(display, value, 0, 0);
+                                            if success == 0 {
+                                                panic!("relative movement failed")
+                                            }
+                                            XFlush(display);
+                                        }
+                                    }
+                                }
+                                #[cfg(not(feature = "xtst"))]
+                                {
+                                    // absolute cursor only
+                                    conn.warp_pointer(NONE, window, 0, 0, 0, 0, value as i16, 0)
                                         .unwrap();
+
+                                    conn.flush.unwrap();
                                 }
                             }
                             RelativeAxisCode::REL_Y => {
-                                /*
-
-                                let curpos = conn.query_pointer(window).unwrap().reply().unwrap();
-
-                                conn.warp_pointer(NONE, NONE, 0, 0, 0, 0, 0, value as i16)
-                                    .unwrap();
-
-                                let curpos2 = conn.query_pointer(window).unwrap().reply().unwrap();
-
-                                if curpos.root_y == curpos2.root_y {
-                                    conn.xtest_fake_input(
-                                        x11rb::protocol::xproto::MOTION_NOTIFY_EVENT,
-                                        0,
-                                        0,
-                                        NONE,
-                                        0,
-                                        value as i16,
-                                        0,
-                                    )
-                                    .unwrap();
+                                devtype = DeviceType::Mouse;
+                                if !configured {
+                                    continue;
                                 }
-                                */
+                                #[cfg(feature = "xtst")]
+                                {
+                                    if let Some(display) = display.as_mut() {
+                                        unsafe {
+                                            let display = display.to_owned();
+                                            let success =
+                                                XTestFakeRelativeMotionEvent(display, 0, value, 0);
+                                            if success == 0 {
+                                                panic!("relative movement failed")
+                                            }
+                                            XFlush(display);
+                                        }
+                                    }
+                                }
+
+                                #[cfg(not(feature = "xtst"))]
+                                {
+                                    // TODO: add createcursor
+                                    // absolute cursor only
+                                    conn.warp_pointer(NONE, window, 0, 0, 0, 0, 0, value as i16)
+                                        .unwrap();
+
+                                    conn.flush.unwrap();
+                                }
                             }
                             RelativeAxisCode::REL_WHEEL => {
+                                devtype = DeviceType::Mouse;
                                 conn.xtest_fake_input(
                                     x11rb::protocol::xproto::BUTTON_PRESS_EVENT,
                                     if value == 1 { 4 } else { 5 },
@@ -171,6 +288,8 @@ pub fn client(devices: String) {
                                     0,
                                 )
                                 .unwrap();
+
+                                conn.flush().unwrap();
                             }
 
                             _ => {}
@@ -178,8 +297,6 @@ pub fn client(devices: String) {
 
                         _ => {}
                     }
-
-                    conn.flush().unwrap();
                 }
             }
         });

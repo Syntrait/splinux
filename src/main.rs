@@ -50,7 +50,7 @@ fn main() {
                         .help("the input sender backend, \"enigo\" or \"legacy\"")
                         .action(ArgAction::Set)
                         .num_args(1)
-                        .default_value("enigo"),
+                        .default_value("legacy"),
                 ),
         )
         .get_matches();

@@ -5,13 +5,34 @@ use std::{
     process::{Child, Command},
 };
 
-pub const REL_X: u16 = 0;
-pub const REL_Y: u16 = 1;
-pub const REL_WHEEL: u16 = 8;
+pub const BTN_SOUTH: u16 = 304; // A
+pub const BTN_EAST: u16 = 305; // B
+pub const BTN_NORTH: u16 = 307; // X
+pub const BTN_WEST: u16 = 308; // Y
+
+pub const BTN_TL: u16 = 310; // LB
+pub const BTN_TR: u16 = 311; // RB
+
+pub const BTN_TL2: u16 = 312; // LT
+pub const BTN_TR2: u16 = 313; // RT
+
+pub const BTN_THUMBL: u16 = 317; // LS
+pub const BTN_THUMBR: u16 = 318; // RS
+
+pub const LEFT_PTR: u16 = 68;
+pub const LEFT_PTR_MASK: u16 = 69;
 
 pub enum StateCommand {
     ToggleFPSMode,
     GetFPSMode(Sender<bool>),
+}
+
+#[derive(PartialEq)]
+pub enum DeviceType {
+    Keyboard,
+    Mouse,
+    Gamepad,
+    Unknown,
 }
 
 pub struct Client {

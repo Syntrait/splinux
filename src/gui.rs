@@ -89,26 +89,11 @@ impl eframe::App for App {
                 ) {
                     Ok(client) => {
                         self.clientlist.push(client);
-                        // remove ghost clients
+                        // refresh client list
                         ctx.request_repaint();
                     }
                     Err(err) => self.alertlist.push(err),
                 }
-            }
-            // TODO: programming horror below, remove later
-            if ui.button("hello").clicked() {
-                sleep(Duration::from_secs(5));
-                let mut sett = Settings::default();
-                sett.x11_display = None;
-                sett.wayland_display = Some("gamescope-0".to_owned());
-                let mut enigo = Enigo::new(&sett).unwrap();
-                enigo
-                    .key(enigo::Key::Unicode('a'), enigo::Direction::Press)
-                    .unwrap();
-                sleep(Duration::from_secs(1));
-                enigo
-                    .key(enigo::Key::Unicode('a'), enigo::Direction::Release)
-                    .unwrap();
             }
             egui::ScrollArea::both().show(ui, |ui| {
                 ui.vertical(|ui| {
@@ -127,7 +112,7 @@ impl eframe::App for App {
                             });
                             if ui.button("X").clicked() {
                                 client.kill();
-                                // remove ghost clients
+                                // refresh client list
                                 ctx.request_repaint();
                             };
                         });
