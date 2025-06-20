@@ -6,6 +6,7 @@ use std::{
 
 use thiserror::Error;
 
+// Gamepad
 pub const BTN_SOUTH: u16 = 304; // A
 pub const BTN_EAST: u16 = 305; // B
 pub const BTN_NORTH: u16 = 307; // X
@@ -19,6 +20,10 @@ pub const BTN_TR2: u16 = 313; // RT
 
 pub const BTN_THUMBL: u16 = 317; // LS
 pub const BTN_THUMBR: u16 = 318; // RS
+
+pub const BTN_SELECT: u16 = 314; // Select
+pub const BTN_START: u16 = 315; // Start
+pub const BTN_MODE: u16 = 316; // Guide/PS Button
 
 #[derive(PartialEq)]
 pub enum DeviceType {

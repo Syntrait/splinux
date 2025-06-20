@@ -1,9 +1,9 @@
 use crate::types::{
-    ClientError, DeviceType, BTN_EAST, BTN_NORTH, BTN_SOUTH, BTN_THUMBL, BTN_THUMBR, BTN_TL,
-    BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST,
+    ClientError, DeviceType, BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START,
+    BTN_THUMBL, BTN_THUMBR, BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST,
 };
-use anyhow::Result;
-use evdev::{Device as EvdevDevice, RelativeAxisCode};
+use anyhow::{Context, Result};
+use evdev::{AbsoluteAxisCode, Device as EvdevDevice, RelativeAxisCode};
 #[cfg(feature = "xtst")]
 use libc::{c_char, c_int, c_ulong};
 use std::{
@@ -116,7 +116,8 @@ impl Peripheral {
         self.configured = true;
         if self.devicetype == DeviceType::Gamepad {
             self.uinput_device = Some(
-                uinput::default()?
+                uinput::default()
+                    .with_context(|| "initializing uinput device")?
                     .name(format!("Splinux Virtual Gamepad Device {}", self.suffix))?
                     .event(event::Controller::All)?
                     .create()?,
@@ -287,6 +288,67 @@ impl Peripheral {
 
                         _ => {}
                     },
+                    evdev::EventSummary::AbsoluteAxis(_, code, value) => match code {
+                        AbsoluteAxisCode::ABS_X => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Position(event::absolute::Position::X),
+                                    value,
+                                )?;
+
+                                dev.synchronize()?;
+                            }
+                        }
+                        AbsoluteAxisCode::ABS_Y => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Position(event::absolute::Position::Y),
+                                    value,
+                                )?;
+
+                                dev.synchronize()?;
+                            }
+                        }
+
+                        AbsoluteAxisCode::ABS_RX => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Position(event::absolute::Position::RX),
+                                    value,
+                                )?;
+
+                                dev.synchronize()?;
+                            }
+                        }
+                        AbsoluteAxisCode::ABS_RY => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Position(event::absolute::Position::RY),
+                                    value,
+                                )?;
+
+                                dev.synchronize()?;
+                            }
+                        }
+
+                        _ => {}
+                    },
 
                     _ => {}
                 }
@@ -310,6 +372,10 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
 
         BTN_THUMBL => GamePad::ThumbL,
         BTN_THUMBR => GamePad::ThumbR,
+
+        BTN_SELECT => GamePad::Select,
+        BTN_START => GamePad::Start,
+        BTN_MODE => GamePad::Mode,
 
         _ => GamePad::Mode,
     }))
