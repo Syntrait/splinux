@@ -1,4 +1,3 @@
-use flume::Sender;
 use std::{
     env::args,
     fmt::Display,
@@ -18,14 +17,6 @@ pub const BTN_TR2: u16 = 313; // RT
 
 pub const BTN_THUMBL: u16 = 317; // LS
 pub const BTN_THUMBR: u16 = 318; // RS
-
-pub const LEFT_PTR: u16 = 68;
-pub const LEFT_PTR_MASK: u16 = 69;
-
-pub enum StateCommand {
-    ToggleFPSMode,
-    GetFPSMode(Sender<bool>),
-}
 
 #[derive(PartialEq)]
 pub enum DeviceType {

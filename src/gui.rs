@@ -1,8 +1,5 @@
-use std::{thread::sleep, time::Duration};
-
 use crate::types::{Backend, Client};
 use eframe::egui;
-use enigo::{Enigo, Keyboard, Settings};
 
 // TODO: do all the launching, save file location spoofing, etc. from the program
 

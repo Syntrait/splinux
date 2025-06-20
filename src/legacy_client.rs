@@ -1,10 +1,9 @@
 use crate::types::{
-    DeviceType, StateCommand, BTN_EAST, BTN_NORTH, BTN_SOUTH, BTN_THUMBL, BTN_THUMBR, BTN_TL,
-    BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, LEFT_PTR, LEFT_PTR_MASK,
+    DeviceType, BTN_EAST, BTN_NORTH, BTN_SOUTH, BTN_THUMBL, BTN_THUMBR, BTN_TL, BTN_TL2, BTN_TR,
+    BTN_TR2, BTN_WEST,
 };
 use eframe::glow::NONE;
 use evdev::{Device, RelativeAxisCode};
-use flume::unbounded;
 #[cfg(feature = "xtst")]
 use libc::{c_char, c_int, c_ulong};
 use std::{
@@ -14,11 +13,7 @@ use std::{
 };
 use uinput::event::{self, controller::GamePad, Controller};
 use x11rb::{
-    connection::Connection,
-    protocol::{
-        xproto::{ChangeWindowAttributesAux, Coloritem, ConnectionExt, CreateGCAux, Rectangle},
-        xtest::ConnectionExt as xtest_ext,
-    },
+    connection::Connection, protocol::xtest::ConnectionExt as xtest_ext,
     rust_connection::RustConnection,
 };
 
@@ -44,6 +39,7 @@ unsafe extern "C" {
 #[cfg(feature = "xtst")]
 #[repr(C)]
 struct Display {
+    // silences warnings
     _private: *mut (),
 }
 
@@ -71,28 +67,8 @@ pub fn client(devices: String) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
     let mut handles: Vec<JoinHandle<()>> = vec![];
 
-    let (tx, rx) = unbounded::<StateCommand>();
-
-    spawn(move || {
-        let mut fpsmode = false;
-        loop {
-            match rx.recv() {
-                Ok(x) => match x {
-                    StateCommand::ToggleFPSMode => {
-                        fpsmode = !fpsmode;
-                    }
-                    StateCommand::GetFPSMode(callback) => {
-                        callback.send(fpsmode).unwrap();
-                    }
-                },
-                Err(_) => break,
-            }
-        }
-    });
-
     for device_num in dev_nums {
         let mut device = Device::open(format!("/dev/input/event{}", device_num)).unwrap();
-        let tx = tx.clone();
 
         let handle = spawn(move || {
             let (conn, _) = RustConnection::connect(None).unwrap();
@@ -304,6 +280,8 @@ pub fn client(devices: String) {
         handles.push(handle);
     }
     for handle in handles {
+        // if one thread fails, the other should too.
+        // this prevents lockups, because disconnecting one device frees the other (perhaps unpluggable) device
         handle.join().unwrap();
     }
 }

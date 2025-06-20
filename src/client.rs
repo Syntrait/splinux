@@ -168,8 +168,6 @@ pub fn client(devices: String, display: String) {
                                         x => {
                                             println!("{:#?}", x);
                                         }
-
-                                        _ => {}
                                     }
                                 }
                             } else {
@@ -199,8 +197,6 @@ pub fn client(devices: String, display: String) {
                                         x => {
                                             println!("{:#?}", x);
                                         }
-
-                                        _ => {}
                                     }
                                 }
                             }
