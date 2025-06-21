@@ -31,7 +31,7 @@ pub const BTN_SELECT: u16 = 314; // Select
 pub const BTN_START: u16 = 315; // Start
 pub const BTN_MODE: u16 = 316; // Guide/PS Button
 
-#[derive(PartialEq, Serialize, Deserialize)]
+#[derive(PartialEq, Serialize, Deserialize, Clone, Copy)]
 #[serde(tag = "type")]
 pub enum DeviceType {
     Keyboard,
@@ -55,12 +55,12 @@ pub enum ClientError {
 pub struct Client {
     pub pid: u32,
     proc: Option<Child>,
-    pub devices: String,
+    pub devices: Vec<Device>,
     pub display: String,
     pub backend: Backend,
 }
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 pub struct Device {
     name: String,
     index: u16,
@@ -83,7 +83,7 @@ impl Device {
 
     pub fn get_name(&self) -> String {
         if self.showindex {
-            format!("{} {}", self.name, self.index)
+            format!("{} {}", self.name, self.index + 1)
         } else {
             self.name.clone()
         }
@@ -92,15 +92,24 @@ impl Device {
 
 pub struct Config {
     pub name: String,
-    pub clients: ClientList,
+    pub clients: Vec<Client>,
 }
 
-pub struct ClientList(Vec<Client>);
+#[derive(Serialize, Deserialize)]
+pub struct DeviceList {
+    pub devices: Vec<Device>,
+}
 
 #[derive(PartialEq, Clone)]
 pub enum Backend {
     Enigo,
     Native,
+}
+
+impl DeviceList {
+    pub fn new(devices: Vec<Device>) -> Self {
+        DeviceList { devices }
+    }
 }
 
 pub fn get_devices() -> Vec<Device> {
@@ -162,7 +171,7 @@ pub fn get_devices() -> Vec<Device> {
             };
 
             let name = evdev_device.name().unwrap();
-            let namenum: u16 = filename.replace("event", "").parse().unwrap();
+            let namenum: u16 = filename.replacen("event", "", 1).parse().unwrap();
 
             let newdev = Device::new(name.to_owned(), 0, devtype, Some(namenum));
 
@@ -182,8 +191,7 @@ pub fn get_devices() -> Vec<Device> {
             perip.index = *val;
             perip.showindex = true;
         } else {
-            // index starts at 1 intentionally
-            store.insert(perip.get_name(), 1);
+            store.insert(perip.get_name(), 0);
         }
     }
 
@@ -210,8 +218,9 @@ impl Display for DeviceType {
     }
 }
 
+// used by gui.rs
 impl Client {
-    pub fn new(display: String, devices: String, backend: Backend) -> Result<Self> {
+    pub fn new(display: String, devices: &Vec<Device>, backend: Backend) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
             return Err(ClientError::UnsupportedError)?;
         }
@@ -224,7 +233,7 @@ impl Client {
                     "-d",
                     display.as_str(),
                     "-i",
-                    devices.as_str(),
+                    "TODO: devices",
                     "-b",
                     "native",
                 ],
@@ -233,7 +242,7 @@ impl Client {
                     "-d",
                     display.as_str(),
                     "-i",
-                    devices.as_str(),
+                    "TODO: devices",
                     "-b",
                     "enigo",
                 ],
@@ -256,7 +265,7 @@ impl Client {
         Ok(Self {
             pid,
             proc: Some(proc),
-            devices,
+            devices: vec![],
             display,
             backend,
         })

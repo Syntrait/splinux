@@ -1,5 +1,5 @@
 # Splinux
-A tool for splitting the screen on Linux, and passing inputs to them 
+A tool for splitting the screen on Linux, and passing inputs to them
 
 # Disclaimer
 **This program might trigger anti-cheats for "automation", use at your own risk.**
@@ -29,7 +29,7 @@ If we run ```evtest```, we will be greeted with a list of devices currently conn
 
 <details>
   <summary>Example</summary>
-  
+
   ```
 /dev/input/event0:      Lid Switch
 /dev/input/event1:      Power Button
@@ -132,11 +132,6 @@ I don't think so.
 git clone https://github.com/Syntrait/splinux
 cd splinux
 cargo build -r
-
-# OPTIONAL, this is for decreasing the file size
-wget https://github.com/upx/upx/releases/download/v4.2.4/upx-4.2.4-amd64_linux.tar.xz
-tar xf upx-4.2.4-amd64_linux.tar.xz
-upx-4.2.4-amd64_linux/upx target/release/splinux
 
 target/release/splinux
 ```
