@@ -1,9 +1,15 @@
 use std::{
+    collections::HashMap,
     env::args,
     fmt::Display,
+    fs::read_dir,
+    os::unix::fs::FileTypeExt,
     process::{Child, Command},
 };
 
+use anyhow::Result;
+use evdev::{Device as EvdevDevice, EventType, KeyCode};
+use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
 // Gamepad
@@ -25,7 +31,8 @@ pub const BTN_SELECT: u16 = 314; // Select
 pub const BTN_START: u16 = 315; // Start
 pub const BTN_MODE: u16 = 316; // Guide/PS Button
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Serialize, Deserialize)]
+#[serde(tag = "type")]
 pub enum DeviceType {
     Keyboard,
     Mouse,
@@ -35,6 +42,10 @@ pub enum DeviceType {
 
 #[derive(Debug, Error)]
 pub enum ClientError {
+    #[error("Couldn't spawn the client process")]
+    SpawnError,
+    #[error("Unsupported")]
+    UnsupportedError,
     #[error("Couldn't open the X11 DISPLAY")]
     X11DisplayOpenError,
     #[error("Relative mouse movement failed")]
@@ -43,11 +54,48 @@ pub enum ClientError {
 
 pub struct Client {
     pub pid: u32,
-    proc: Child,
+    proc: Option<Child>,
     pub devices: String,
     pub display: String,
     pub backend: Backend,
 }
+
+#[derive(Serialize, Deserialize)]
+pub struct Device {
+    name: String,
+    index: u16,
+    showindex: bool,
+    pub devicetype: DeviceType,
+    // dont depend on this too much
+    pub namenum: Option<u16>,
+}
+
+impl Device {
+    pub fn new(name: String, index: u16, devicetype: DeviceType, namenum: Option<u16>) -> Self {
+        Self {
+            name,
+            index,
+            showindex: false,
+            devicetype,
+            namenum,
+        }
+    }
+
+    pub fn get_name(&self) -> String {
+        if self.showindex {
+            format!("{} {}", self.name, self.index)
+        } else {
+            self.name.clone()
+        }
+    }
+}
+
+pub struct Config {
+    pub name: String,
+    pub clients: ClientList,
+}
+
+pub struct ClientList(Vec<Client>);
 
 #[derive(PartialEq, Clone)]
 pub enum Backend {
@@ -55,33 +103,122 @@ pub enum Backend {
     Native,
 }
 
+pub fn get_devices() -> Vec<Device> {
+    let mut devices: Vec<Device> = vec![];
+
+    for device in read_dir("/dev/input").unwrap() {
+        if let Ok(dev) = device {
+            if !dev.file_type().unwrap().is_char_device() {
+                continue;
+            }
+            let filename = dev.file_name().into_string().unwrap();
+            if !filename.starts_with("event") {
+                continue;
+            }
+            let path = "/dev/input/".to_owned() + &filename;
+            let evdev_device = EvdevDevice::open(&path).unwrap();
+
+            let supports = evdev_device.supported_events();
+
+            if !supports.contains(EventType::ABSOLUTE)
+                && !supports.contains(EventType::FORCEFEEDBACK)
+                && !supports.contains(EventType::KEY)
+                && !supports.contains(EventType::RELATIVE)
+            {
+                continue;
+            }
+
+            let is_gamepad = evdev_device
+                .supported_keys()
+                .map_or(false, |keys| keys.contains(KeyCode::BTN_SOUTH));
+
+            let is_mouse = evdev_device
+                .supported_keys()
+                .map_or(false, |keys| keys.contains(KeyCode::BTN_LEFT));
+
+            let is_keyboard = evdev_device
+                .supported_keys()
+                .map_or(false, |keys| keys.contains(KeyCode::KEY_ENTER));
+
+            let count = [is_gamepad, is_mouse, is_keyboard]
+                .iter()
+                .filter(|&&x| x)
+                .count();
+
+            let devtype = match count {
+                0 => {
+                    continue;
+                }
+                1 => {
+                    if is_gamepad {
+                        DeviceType::Gamepad
+                    } else if is_mouse {
+                        DeviceType::Mouse
+                    } else {
+                        DeviceType::Keyboard
+                    }
+                }
+                _ => DeviceType::Unknown,
+            };
+
+            let name = evdev_device.name().unwrap();
+            let namenum: u16 = filename.replace("event", "").parse().unwrap();
+
+            let newdev = Device::new(name.to_owned(), 0, devtype, Some(namenum));
+
+            devices.push(newdev);
+        }
+    }
+
+    // devices connected first are more likely to be relevant
+    devices.sort_by_key(|dev| dev.namenum.unwrap());
+
+    // handle duplicate named devices with index numbers
+    let mut store: HashMap<String, u16> = HashMap::new();
+
+    for perip in devices.iter_mut() {
+        if let Some(val) = store.get_mut(&perip.get_name()) {
+            *val += 1;
+            perip.index = *val;
+            perip.showindex = true;
+        } else {
+            // index starts at 1 intentionally
+            store.insert(perip.get_name(), 1);
+        }
+    }
+
+    devices
+}
+
 impl Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Backend::Enigo => write!(f, "Enigo"),
             Backend::Native => write!(f, "Native"),
+            Backend::Enigo => write!(f, "Enigo"),
+        }
+    }
+}
+
+impl Display for DeviceType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            DeviceType::Gamepad => write!(f, "Gamepad"),
+            DeviceType::Mouse => write!(f, "Mouse"),
+            DeviceType::Keyboard => write!(f, "Keyboard"),
+            DeviceType::Unknown => write!(f, "Unknown"),
         }
     }
 }
 
 impl Client {
-    pub fn new(display: String, devices: String, backend: Backend) -> Result<Self, String> {
+    pub fn new(display: String, devices: String, backend: Backend) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
-            return Err("Native backend doesn't support Wayland".to_owned());
+            return Err(ClientError::UnsupportedError)?;
         }
 
         let args: Vec<String> = args().collect();
         let proc = Command::new(args[0].clone())
             .args(match backend {
-                Backend::Enigo => [
-                    "run",
-                    "-d",
-                    display.as_str(),
-                    "-i",
-                    devices.as_str(),
-                    "-b",
-                    "enigo",
-                ],
                 Backend::Native => [
                     "run",
                     "-d",
@@ -90,6 +227,15 @@ impl Client {
                     devices.as_str(),
                     "-b",
                     "native",
+                ],
+                Backend::Enigo => [
+                    "run",
+                    "-d",
+                    display.as_str(),
+                    "-i",
+                    devices.as_str(),
+                    "-b",
+                    "enigo",
                 ],
             })
             .env(
@@ -104,13 +250,12 @@ impl Client {
                     display.as_str()
                 },
             )
-            .spawn()
-            .unwrap();
+            .spawn()?;
         let pid = proc.id();
 
         Ok(Self {
             pid,
-            proc,
+            proc: Some(proc),
             devices,
             display,
             backend,
@@ -118,16 +263,22 @@ impl Client {
     }
 
     pub fn is_alive(&mut self) -> bool {
-        match self.proc.try_wait() {
-            Ok(Some(_)) => return false,
-            Ok(None) => return true,
-            Err(x) => {
-                panic!("{}", x);
+        if let Some(proc) = self.proc.as_mut() {
+            match proc.try_wait() {
+                Ok(Some(_)) => return false,
+                Ok(None) => return true,
+                Err(x) => {
+                    panic!("{}", x);
+                }
             }
+        } else {
+            return false;
         }
     }
 
     pub fn kill(&mut self) {
-        self.proc.kill().unwrap();
+        if self.is_alive() {
+            self.proc.as_mut().unwrap().kill().unwrap();
+        }
     }
 }

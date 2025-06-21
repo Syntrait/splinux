@@ -1,5 +1,6 @@
-use crate::types::{Backend, Client};
+use crate::types::{Backend, Client, get_devices};
 use eframe::egui;
+use serde::Serialize;
 
 // TODO: do all the launching, save file location spoofing, etc. from the program
 
@@ -47,13 +48,24 @@ impl eframe::App for App {
                     }
                 });
             });
+            if ui.button("Create new preset").clicked() {
+                println!("create preset");
+                let devices = get_devices();
+                for device in devices.iter() {
+                    println!(
+                        "device name: {}\ndevice type: {}\ndevice namenum: {}",
+                        device.get_name(),
+                        device.devicetype,
+                        device.namenum.unwrap(),
+                    );
+                }
+                println!("{}", toml::to_string(&devices).unwrap());
+            }
 
             ui.horizontal(|ui| {
                 ui.label("Display:")
                     .on_hover_cursor(egui::CursorIcon::Help)
-                    .on_hover_text(
-                        "The display ID to use. Eg. \"wayland-2\", \"gamescope-0\", \":30\" ",
-                    );
+                    .on_hover_text("The display ID to use. Eg. \":30\", \"wayland-2\"");
                 ui.add(
                     egui::TextEdit::singleline(&mut self.newclient_display).desired_width(250.0),
                 );
@@ -69,11 +81,9 @@ impl eframe::App for App {
             ui.horizontal(|ui| {
                 ui.label("Backend:")
                     .on_hover_cursor(egui::CursorIcon::Help)
-                    .on_hover_text(
-                        "The backend (input sender) to use. Enigo is currently experimental.",
-                    );
-                ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
+                    .on_hover_text("The backend (input sender) to use. Native is recommended.");
                 ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
+                ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
             });
             let add_button = ui.button("+");
             if add_button.clicked() {
@@ -89,7 +99,7 @@ impl eframe::App for App {
                         // refresh client list
                         ctx.request_repaint();
                     }
-                    Err(err) => self.alertlist.push(err),
+                    Err(err) => self.alertlist.push(err.to_string()),
                 }
             }
             egui::ScrollArea::both().show(ui, |ui| {
