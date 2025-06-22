@@ -8,6 +8,7 @@ struct App {
     alertlist: Vec<String>,
     clientlist: Vec<Client>,
     newclient_display: String,
+    newplayername_display: String,
     newdevices_display: Vec<GuiDevice>,
     newbackend_display: Backend,
     aboutwindow_visible: bool,
@@ -28,6 +29,7 @@ impl Default for App {
             alertlist: vec![],
             clientlist: vec![],
             newclient_display: ":1".to_owned(),
+            newplayername_display: "".to_owned(),
             newdevices_display: vec![],
             newbackend_display: Backend::Native,
             aboutwindow_visible: false,
@@ -42,6 +44,38 @@ struct GuiDevice {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+        egui::SidePanel::right("devicelistpanel")
+            .default_width(400.0)
+            .show(ctx, |ui| {
+                if ui.button("Refresh device list").clicked() {
+                    let devices: Vec<GuiDevice> = get_devices()
+                        .iter()
+                        .map(|dev| GuiDevice {
+                            device: dev.clone(),
+                            chosen: false,
+                        })
+                        .collect();
+
+                    self.newdevices_display = devices;
+                }
+                if self.newdevices_display.len() != 0 {
+                    ui.vertical(|ui| {
+                        ScrollArea::both().id_salt("devicelist").show(ui, |ui| {
+                            ui.group(|ui| {
+                                for device in self.newdevices_display.iter_mut() {
+                                    ui.group(|ui| {
+                                        ui.horizontal(|ui| {
+                                            ui.label(device.device.get_name());
+                                            ui.checkbox(&mut device.chosen, "enabled");
+                                        });
+                                    });
+                                }
+                            });
+                        });
+                    });
+                }
+            });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             ScrollArea::both().id_salt("mainscroll").show(ui, |ui| {
                 ui.horizontal(|ui| {
@@ -69,106 +103,100 @@ impl eframe::App for App {
                     println!("{}", toml::to_string(&devices).unwrap());
                 }
 
-                if ui.button("Refresh device list").clicked() {
-                    let devices: Vec<GuiDevice> = get_devices()
-                        .iter()
-                        .map(|dev| GuiDevice {
-                            device: dev.clone(),
-                            chosen: false,
-                        })
-                        .collect();
+                ui.vertical(|ui| {
+                    ui.group(|ui| {
+                        ui.horizontal(|ui| {
+                            ui.label("Name:")
+                                .on_hover_cursor(egui::CursorIcon::Help)
+                                .on_hover_text(
+                                    "The player name, for identifying instances. Eg. \"Player 1\"",
+                                );
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.newplayername_display)
+                                    .desired_width(250.0),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Display:")
+                                .on_hover_cursor(egui::CursorIcon::Help)
+                                .on_hover_text("The display ID to use. Eg. \":30\", \"wayland-2\"");
+                            ui.add(
+                                egui::TextEdit::singleline(&mut self.newclient_display)
+                                    .desired_width(250.0),
+                            );
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Devices:")
+                                .on_hover_cursor(egui::CursorIcon::Help)
+                                .on_hover_text(
+                                    "The input devices' IDs, seperated with commas. Eg. \"25,28\"",
+                                );
+                            /*ui.add(
+                                egui::TextEdit::singleline(&mut self.newdevices_display).desired_width(250.0),
+                            );*/
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Backend:")
+                                .on_hover_cursor(egui::CursorIcon::Help)
+                                .on_hover_text(
+                                    "The backend (input sender) to use. Native is recommended.",
+                                );
+                            ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
+                            ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
+                        });
+                        let add_button = ui.button("+");
+                        if add_button.clicked() {
+                            // lose focus, so space/enter doesn't spam click the add button
+                            add_button.surrender_focus();
+                            let devices: Vec<Device> = self
+                                .newdevices_display
+                                .iter()
+                                .map(|gd| gd.device.clone())
+                                .collect();
 
-                    self.newdevices_display = devices;
-                }
-
-                ui.horizontal(|ui| {
-                    ui.label("Display:")
-                        .on_hover_cursor(egui::CursorIcon::Help)
-                        .on_hover_text("The display ID to use. Eg. \":30\", \"wayland-2\"");
-                    ui.add(
-                        egui::TextEdit::singleline(&mut self.newclient_display)
-                            .desired_width(250.0),
-                    );
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Devices:")
-                        .on_hover_cursor(egui::CursorIcon::Help)
-                        .on_hover_text(
-                            "The input devices' IDs, seperated with commas. Eg. \"25,28\"",
-                        );
-                    /*ui.add(
-                        egui::TextEdit::singleline(&mut self.newdevices_display).desired_width(250.0),
-                    );*/
-                });
-                ui.horizontal(|ui| {
-                    ui.label("Backend:")
-                        .on_hover_cursor(egui::CursorIcon::Help)
-                        .on_hover_text("The backend (input sender) to use. Native is recommended.");
-                    ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
-                    ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
-                });
-                let add_button = ui.button("+");
-                if add_button.clicked() {
-                    // lose focus, so space/enter doesn't spam click the add button
-                    add_button.surrender_focus();
-                    let devices: Vec<Device> = self
-                        .newdevices_display
-                        .iter()
-                        .map(|gd| gd.device.clone())
-                        .collect();
-
-                    match Client::new(
-                        self.newclient_display.clone(),
-                        &devices,
-                        self.newbackend_display.clone(),
-                    ) {
-                        Ok(client) => {
-                            self.clientlist.push(client);
-                            // refresh client list
-                            ctx.request_repaint();
-                        }
-                        Err(err) => self.alertlist.push(err.to_string()),
-                    }
-                }
-                ScrollArea::both().id_salt("clientlist").show(ui, |ui| {
-                    ui.vertical(|ui| {
-                        self.clientlist.retain_mut(|x| x.is_alive());
-                        for client in &mut self.clientlist {
-                            ui.group(|ui| {
-                                ui.label(format!("Client {}", client.pid));
-                                ui.group(|ui| {
-                                    ui.label(format!("Display: {}", client.display));
-                                });
-                                ui.group(|ui| {
-                                    //ui.label(format!("Devices: {}", client.devices));
-                                });
-                                ui.group(|ui| {
-                                    ui.label(format!("Backend: {}", client.backend));
-                                });
-                                if ui.button("X").clicked() {
-                                    client.kill();
+                            match Client::new(
+                                self.newplayername_display.clone(),
+                                self.newclient_display.clone(),
+                                &devices,
+                                self.newbackend_display.clone(),
+                            ) {
+                                Ok(client) => {
+                                    self.clientlist.push(client);
                                     // refresh client list
                                     ctx.request_repaint();
-                                };
+                                }
+                                Err(err) => self.alertlist.push(err.to_string()),
+                            }
+                        }
+
+                        if self.clientlist.len() != 0 {
+                            ScrollArea::both().id_salt("clientlist").show(ui, |ui| {
+                                ui.vertical(|ui| {
+                                    self.clientlist.retain_mut(|x| x.is_alive());
+                                    for client in &mut self.clientlist {
+                                        ui.group(|ui| {
+                                            ui.label(format!("Client {}", client.pid));
+                                            ui.group(|ui| {
+                                                ui.label(format!("Display: {}", client.display));
+                                            });
+                                            ui.group(|ui| {
+                                                //ui.label(format!("Devices: {}", client.devices));
+                                            });
+                                            ui.group(|ui| {
+                                                ui.label(format!("Backend: {}", client.backend));
+                                            });
+                                            if ui.button("X").clicked() {
+                                                client.kill();
+                                                // refresh client list
+                                                ctx.request_repaint();
+                                            };
+                                        });
+                                    }
+                                });
                             });
                         }
                     });
                 });
-
-                if self.newdevices_display.len() != 0 {
-                    ScrollArea::both().id_salt("devicelist").show(ui, |ui| {
-                        ui.group(|ui| {
-                            for device in self.newdevices_display.iter_mut() {
-                                ui.group(|ui| {
-                                    ui.horizontal(|ui| {
-                                        ui.label(device.device.get_name());
-                                        ui.checkbox(&mut device.chosen, "enabled");
-                                    });
-                                });
-                            }
-                        });
-                    });
-                }
             });
         });
         if self.aboutwindow_visible {

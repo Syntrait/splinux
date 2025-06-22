@@ -52,7 +52,9 @@ pub enum ClientError {
     RelativeMovementFail,
 }
 
+// used by gui.rs
 pub struct Client {
+    pub name: String,
     pub pid: u32,
     proc: Option<Child>,
     pub devices: Vec<Device>,
@@ -219,8 +221,14 @@ impl Display for DeviceType {
 }
 
 // used by gui.rs
+// launch a subprocess
 impl Client {
-    pub fn new(display: String, devices: &Vec<Device>, backend: Backend) -> Result<Self> {
+    pub fn new(
+        name: String,
+        display: String,
+        devices: &Vec<Device>,
+        backend: Backend,
+    ) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
             return Err(ClientError::UnsupportedError)?;
         }
@@ -261,11 +269,13 @@ impl Client {
             )
             .spawn()?;
         let pid = proc.id();
+        let devices = devices.clone();
 
         Ok(Self {
+            name,
             pid,
             proc: Some(proc),
-            devices: vec![],
+            devices,
             display,
             backend,
         })
