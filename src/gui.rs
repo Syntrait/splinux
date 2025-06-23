@@ -205,6 +205,7 @@ impl App {
                         if let Some(preset) = preset {
                             self.presetlist.push(preset);
                         }
+                        self.guistate = GuiState::MainMenu
                     }
                 });
             });
