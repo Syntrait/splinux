@@ -78,6 +78,10 @@ impl Clone for Client {
     }
 }
 
+pub enum StateCommand {
+    TerminateClient,
+}
+
 pub enum GuiState {
     MainMenu,     // Select a preset
     EditPreset,   // Create & Edit preset
@@ -136,12 +140,6 @@ pub struct DeviceList {
 pub enum Backend {
     Enigo,
     Native,
-}
-
-impl DeviceList {
-    pub fn new(devices: Vec<Device>) -> Self {
-        DeviceList { devices }
-    }
 }
 
 pub fn get_devices() -> Vec<Device> {
@@ -251,7 +249,6 @@ impl Display for DeviceType {
 }
 
 // used by gui.rs
-// launch a subprocess
 impl Client {
     pub fn new(
         name: String,
@@ -263,45 +260,6 @@ impl Client {
             return Err(ClientError::UnsupportedError)?;
         }
 
-        /*
-         *
-        let args: Vec<String> = args().collect();
-        let proc = Command::new(args[0].clone())
-            .args(match backend {
-                Backend::Native => [
-                    "run",
-                    "-d",
-                    display.as_str(),
-                    "-i",
-                    "TODO: devices",
-                    "-b",
-                    "native",
-                ],
-                Backend::Enigo => [
-                    "run",
-                    "-d",
-                    display.as_str(),
-                    "-i",
-                    "TODO: devices",
-                    "-b",
-                    "enigo",
-                ],
-            })
-            .env(
-                if display.contains(":") {
-                    "DISPLAY"
-                } else {
-                    "WAYLAND_DISPLAY"
-                },
-                if display.contains(":") {
-                    display.as_str()
-                } else {
-                    display.as_str()
-                },
-            )
-            .spawn()?;
-        let pid = proc.id();
-        */
         let devices = devices.clone();
 
         Ok(Self {
@@ -312,6 +270,40 @@ impl Client {
             display,
             backend,
         })
+    }
+
+    pub fn run(&mut self) -> Result<()> {
+        let args: Vec<String> = args().collect();
+        let display: &str = self.display.as_str();
+        // TODO: make this properly
+        let proc = Command::new("gamescope")
+            .args([
+                "-W",
+                "1920",
+                "-H",
+                "1080",
+                "--backend",
+                "sdl",
+                "--",
+                display,
+                "-i",
+                "",
+                "-b",
+                "native",
+            ])
+            .env(
+                if display.contains(":") {
+                    "DISPLAY"
+                } else {
+                    "WAYLAND_DISPLAY"
+                },
+                display,
+            )
+            .spawn()?;
+        let pid = proc.id();
+        self.pid = Some(pid);
+
+        Ok(())
     }
 
     pub fn is_alive(&mut self) -> bool {

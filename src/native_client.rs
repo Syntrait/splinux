@@ -1,18 +1,20 @@
 use crate::types::{
-    ClientError, DeviceType, BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START,
-    BTN_THUMBL, BTN_THUMBR, BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST,
+    BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START, BTN_THUMBL, BTN_THUMBR,
+    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, ClientError, Device, DeviceType, StateCommand,
+    get_devices,
 };
 use anyhow::{Context, Result};
 use evdev::{AbsoluteAxisCode, Device as EvdevDevice, RelativeAxisCode};
+use flume::{Receiver, TryRecvError};
 #[cfg(feature = "xtst")]
 use libc::{c_char, c_int, c_ulong};
 use std::{
-    thread::{spawn, JoinHandle},
+    thread::{JoinHandle, spawn},
     u16,
 };
 use uinput::{
-    event::{self, controller::GamePad, Controller},
     Device as UInputDevice,
+    event::{self, Controller, controller::GamePad},
 };
 use x11rb::{
     connection::Connection, protocol::xtest::ConnectionExt, rust_connection::RustConnection,
@@ -53,6 +55,7 @@ struct Peripheral {
     configured: bool,
     display: Option<DisplayPtr>,
     x11connection: RustConnection,
+    displayvar: String,
 }
 
 impl Drop for Peripheral {
@@ -76,7 +79,8 @@ unsafe impl Send for DisplayPtr {}
 #[cfg(feature = "xtst")]
 impl Clone for DisplayPtr {
     fn clone(&self) -> Self {
-        Self::new()
+        let mut null: c_char = 0;
+        Self::new(&mut null)
     }
 }
 
@@ -85,20 +89,21 @@ impl Copy for DisplayPtr {}
 
 #[cfg(feature = "xtst")]
 impl DisplayPtr {
-    fn new() -> Self {
-        let mut null: c_char = 0;
+    fn new(display: *mut i8) -> Self {
         unsafe {
             Self {
-                0: XOpenDisplay(&mut null),
+                0: XOpenDisplay(display),
             }
         }
     }
 }
 
 impl Peripheral {
-    fn new(path: String, suffix: String) -> Result<Self> {
+    fn new(path: String, suffix: String, displayvar: &String) -> Result<Self> {
         let evdev_device = EvdevDevice::open(&path)?;
-        let (x11connection, _) = RustConnection::connect(None)?;
+        let (x11connection, _) = RustConnection::connect(Some(displayvar))?;
+
+        let displayvar = displayvar.clone();
 
         Ok(Self {
             path,
@@ -109,6 +114,7 @@ impl Peripheral {
             configured: false,
             display: None,
             x11connection,
+            displayvar,
         })
     }
 
@@ -125,7 +131,8 @@ impl Peripheral {
         } else if self.devicetype == DeviceType::Mouse {
             #[cfg(feature = "xtst")]
             {
-                self.display = Some(DisplayPtr::new());
+                let mut displayparse: c_char = self.displayvar.parse().unwrap();
+                self.display = Some(DisplayPtr::new(&mut displayparse));
                 if let Some(display) = self.display.as_mut() {
                     if display.0.is_null() {
                         return Err(ClientError::X11DisplayOpenError)?;
@@ -139,13 +146,22 @@ impl Peripheral {
         Ok(())
     }
 
-    fn run(&mut self) -> Result<()> {
+    fn run(&mut self, rx: Receiver<StateCommand>) -> Result<()> {
         if let Err(x) = self.evdev_device.grab() {
             eprintln!("Couldn't grab the input device, continuing anyways.");
             eprintln!("{}: {}", x.kind(), x.to_string());
         }
 
         loop {
+            match rx.try_recv() {
+                Ok(StateCommand::TerminateClient) => {
+                    return Ok(());
+                }
+                Err(TryRecvError::Empty) => {}
+                Err(TryRecvError::Disconnected) => {
+                    return Err(TryRecvError::Disconnected)?;
+                }
+            }
             if !self.configured && self.devicetype != DeviceType::Unknown {
                 self.configure()?;
             }
@@ -381,16 +397,17 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
     }))
 }
 
-pub fn client(devices: String) {
+pub fn client(devices: String, displayvar: String, rx: Receiver<StateCommand>) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
     let mut handles: Vec<JoinHandle<()>> = vec![];
 
     for device_num in dev_nums {
         let path = format!("/dev/input/event{}", device_num);
-        let mut perip = Peripheral::new(path, device_num.to_owned()).unwrap();
+        let mut perip = Peripheral::new(path, device_num.to_owned(), &displayvar).unwrap();
+        let rx = rx.clone();
 
         let handle = spawn(move || {
-            perip.run().unwrap();
+            perip.run(rx).unwrap();
         });
 
         handles.push(handle);

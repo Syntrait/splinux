@@ -1,15 +1,19 @@
-use crate::types::{Backend, Client, Device, GuiState, Preset, get_devices};
+use std::fs::read_to_string;
+
+use crate::{
+    native_client,
+    types::{Backend, Client, Device, GuiState, Preset, StateCommand, get_devices},
+};
+use anyhow::Result;
 use eframe::egui::{self, ScrollArea, TextEdit};
-use libc::dev_t;
+use flume::unbounded;
+use rfd::FileDialog;
 
 // TODO: do all the launching, save file location spoofing, etc. from the program
 
 struct App {
-    // TODO: dont forget to tell the user what's wrong with the arguments
-    alertlist: Vec<String>,
     clientlist: Vec<Client>,
     guistate: GuiState,
-    newclient_display: Option<Client>,
     newpresetname_display: String,
     newclientname_display: String,
     newdevices_display: Vec<GuiDevice>,
@@ -31,10 +35,8 @@ impl Drop for App {
 impl Default for App {
     fn default() -> Self {
         Self {
-            alertlist: vec![],
             clientlist: vec![],
             guistate: GuiState::MainMenu,
-            newclient_display: None,
             newpresetname_display: "".to_owned(),
             newclientname_display: "".to_owned(),
             newdevices_display: get_ui_devices(),
@@ -90,10 +92,27 @@ impl App {
                 ui.label("Preset name:");
                 ui.add(TextEdit::singleline(&mut self.newpresetname_display).desired_width(150.0));
             });
-            if ui.button("Create new preset").clicked() {
-                let preset = Preset::new(self.newpresetname_display.to_owned(), vec![]);
-                self.presetlist.push(preset);
-            }
+            ui.horizontal(|ui| {
+                if ui.button("Create new preset").clicked() {
+                    let preset = Preset::new(self.newpresetname_display.to_owned(), vec![]);
+                    self.presetlist.push(preset);
+                }
+                if ui.button("Load a preset").clicked() {
+                    if let Some(file) = FileDialog::new()
+                        .add_filter("TOML config", &["toml"])
+                        .pick_file()
+                    {
+                        if let Ok(content) = read_to_string(file) {
+                            let preset: Result<Preset, toml::de::Error> =
+                                toml::from_str(content.as_str());
+
+                            if let Ok(preset) = preset {
+                                self.presetlist.push(preset);
+                            }
+                        }
+                    }
+                }
+            });
 
             if !self.presetlist.is_empty() {
                 ui.vertical(|ui| {
@@ -149,8 +168,6 @@ impl App {
                         if ui.button("Add Client").clicked() {
                             self.guistate = GuiState::EditClient;
                             self.newdevices_display = get_ui_devices();
-                            //self.newclient_display"
-                            println!("add client");
                         }
                     });
                 });
@@ -161,7 +178,7 @@ impl App {
                     ScrollArea::both().id_salt("clientlist").show(ui, |ui| {
                         ui.group(|ui| {
                             let mut removeindex: Option<usize> = None;
-                            for (i, client) in chosenpreset.clients.iter().enumerate() {
+                            for (index, client) in chosenpreset.clients.iter().enumerate() {
                                 ui.group(|ui| {
                                     ui.vertical(|ui| {
                                         ui.label(format!("Client: {}", client.name));
@@ -170,7 +187,7 @@ impl App {
                                             ui.label(format!("- {}", dev.get_name()));
                                         }
                                         if ui.button("Delete").clicked() {
-                                            removeindex = Some(i);
+                                            removeindex = Some(index);
                                         }
                                     });
                                 });
@@ -197,7 +214,20 @@ impl App {
                         self.guistate = GuiState::EditPreset;
                     }
                     if ui.button("Export").clicked() {
-                        // TODO: export as TOML
+                        if let Some(preset) = self.chosenpreset.as_ref() {
+                            if let Ok(content) = toml::to_string(&preset) {
+                                if let Some(file) = FileDialog::new()
+                                    .add_filter("TOML config", &["toml"])
+                                    .save_file()
+                                {
+                                    if let Err(err) = std::fs::write(file, content) {
+                                        println!("{:#?}", err);
+                                    } else {
+                                        println!("Successfully exported Preset.");
+                                    }
+                                }
+                            }
+                        }
                     }
                     ui.add_space(30.0);
                     if ui.button("Unchoose").clicked() {
@@ -214,6 +244,45 @@ impl App {
             if let Some(chosenpreset) = self.chosenpreset.as_ref() {
                 ui.label(format!("Preset: {}", chosenpreset.name));
             }
+            ui.label("Clients:");
+            ScrollArea::both().id_salt("presetoverview").show(ui, |ui| {
+                if let Some(chosenpreset) = self.chosenpreset.as_mut() {
+                    let mut removeindex: Option<usize> = None;
+                    for (index, client) in chosenpreset.clients.iter_mut().enumerate() {
+                        ui.group(|ui| {
+                            ui.label(format!("Name: {}", client.name));
+                            ui.label("Devices:");
+                            for dev in client.devices.iter() {
+                                ui.label(format!("- {}", dev.get_name()));
+                            }
+                            if ui.button("Start").clicked() {
+                                //
+                                let all_devices = get_devices();
+
+                                for dev in client.devices.iter_mut() {
+                                    dev.namenum = all_devices
+                                        .iter()
+                                        .find(|x| x.get_name() == dev.get_name())
+                                        .unwrap()
+                                        .namenum
+                                }
+
+                                let (tx, rx) = unbounded::<StateCommand>();
+
+                                //native_client::client(devices, displayvar, rx);
+
+                                // start gamescope -- bwrap
+                            }
+                            if ui.button("Delete").clicked() {
+                                removeindex = Some(index);
+                            }
+                        });
+                    }
+                    if let Some(index) = removeindex {
+                        chosenpreset.clients.remove(index);
+                    }
+                }
+            });
         });
     }
 
@@ -264,13 +333,6 @@ impl App {
                             ui.label("Display:")
                                 .on_hover_cursor(egui::CursorIcon::Help)
                                 .on_hover_text("The display ID to use. Eg. \":30\", \"wayland-2\"");
-                            /*
-                            ui.add(
-                                 *
-                                egui::TextEdit::singleline(&mut self.newclient_display)
-                                    .desired_width(250.0),
-                            );
-                            */
                         });
                         ui.horizontal(|ui| {
                             ui.label("Backend:")
@@ -307,64 +369,6 @@ impl App {
                                 self.newclientname_display = "".to_owned();
                             }
                         });
-
-                        //if add_button.clicked() {
-                        // lose focus, so space/enter doesn't spam click the add button
-                        //add_button.surrender_focus();
-                        /*
-                         *
-                         *
-                        let devices: Vec<Device> = self
-                            .newdevices_display
-                            .iter()
-                            .map(|gd| gd.device.clone())
-                            .collect();
-
-                        match Client::new(
-                            self.newclientname_display.clone(),
-                            self.newclient_display.clone(),
-                            &devices,
-                            self.newbackend_display.clone(),
-                        ) {
-                            Ok(client) => {
-                                self.clientlist.push(client);
-                                // refresh client list
-                                ctx.request_repaint();
-                            }
-                            Err(err) => self.alertlist.push(err.to_string()),
-                        }
-                        */
-                        //}
-
-                        /*
-                         *
-                        if self.clientlist.len() != 0 {
-                            ScrollArea::both().id_salt("clientlist").show(ui, |ui| {
-                                ui.vertical(|ui| {
-                                    self.clientlist.retain_mut(|x| x.is_alive());
-                                    for client in &mut self.clientlist {
-                                        ui.group(|ui| {
-                                            //ui.label(format!("Client {}", client.pid));
-                                            ui.group(|ui| {
-                                                ui.label(format!("Name: {}", client.name));
-                                            });
-                                            ui.group(|ui| {
-                                                ui.label(format!("Display: {}", client.display));
-                                            });
-                                            ui.group(|ui| {
-                                                ui.label(format!("Backend: {}", client.backend));
-                                            });
-                                            if ui.button("X").clicked() {
-                                                client.kill();
-                                                // refresh client list
-                                                ctx.request_repaint();
-                                            };
-                                        });
-                                    }
-                                });
-                            });
-                        }
-                        */
                     });
                 });
             });

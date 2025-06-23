@@ -73,7 +73,7 @@ fn main() {
 
             match backend {
                 Backend::Native => {
-                    nativeclient(input.to_owned());
+                    //nativeclient(input.to_owned(), "".to_owned());
                 }
                 Backend::Enigo => {
                     client(input.to_owned(), display.to_owned());
