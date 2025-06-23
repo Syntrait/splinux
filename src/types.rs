@@ -57,7 +57,7 @@ pub enum ClientError {
 #[derive(Serialize, Deserialize)]
 pub struct Client {
     pub name: String,
-    pub pid: u32,
+    pub pid: Option<u32>,
     #[serde(skip_serializing, skip_deserializing)]
     proc: Option<Child>,
     pub devices: Vec<Device>,
@@ -263,6 +263,8 @@ impl Client {
             return Err(ClientError::UnsupportedError)?;
         }
 
+        /*
+         *
         let args: Vec<String> = args().collect();
         let proc = Command::new(args[0].clone())
             .args(match backend {
@@ -299,12 +301,13 @@ impl Client {
             )
             .spawn()?;
         let pid = proc.id();
+        */
         let devices = devices.clone();
 
         Ok(Self {
             name,
-            pid,
-            proc: Some(proc),
+            pid: None,
+            proc: None,
             devices,
             display,
             backend,

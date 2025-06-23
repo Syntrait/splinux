@@ -1,5 +1,6 @@
-use crate::types::{Backend, Client, Device, DeviceList, GuiState, Preset, get_devices};
+use crate::types::{Backend, Client, Device, GuiState, Preset, get_devices};
 use eframe::egui::{self, ScrollArea, TextEdit};
+use libc::dev_t;
 
 // TODO: do all the launching, save file location spoofing, etc. from the program
 
@@ -8,7 +9,7 @@ struct App {
     alertlist: Vec<String>,
     clientlist: Vec<Client>,
     guistate: GuiState,
-    newclient_display: String,
+    newclient_display: Option<Client>,
     newpresetname_display: String,
     newclientname_display: String,
     newdevices_display: Vec<GuiDevice>,
@@ -33,7 +34,7 @@ impl Default for App {
             alertlist: vec![],
             clientlist: vec![],
             guistate: GuiState::MainMenu,
-            newclient_display: ":1".to_owned(),
+            newclient_display: None,
             newpresetname_display: "".to_owned(),
             newclientname_display: "".to_owned(),
             newdevices_display: get_ui_devices(),
@@ -64,7 +65,9 @@ impl eframe::App for App {
     fn update(&mut self, ctx: &eframe::egui::Context, _: &mut eframe::Frame) {
         match self.guistate {
             GuiState::MainMenu => self.render_mainmenu(&ctx),
+            GuiState::ManagePreset => self.render_managepreset(&ctx),
             GuiState::EditClient => self.render_editclient(&ctx),
+            GuiState::EditPreset => self.render_editpreset(&ctx),
             _ => {}
         }
     }
@@ -92,21 +95,31 @@ impl App {
                 self.presetlist.push(preset);
             }
 
-            ui.vertical(|ui| {
-                ScrollArea::both().id_salt("presetlist").show(ui, |ui| {
-                    ui.group(|ui| {
-                        for preset in self.presetlist.iter() {
-                            ui.group(|ui| {
-                                if ui.button("Choose").clicked() {
-                                    self.chosenpreset = Some(preset.clone());
-                                    self.guistate = GuiState::EditPreset;
-                                }
-                                ui.label(format!("Preset: {}", preset.name));
-                            });
-                        }
+            if !self.presetlist.is_empty() {
+                ui.vertical(|ui| {
+                    ScrollArea::both().id_salt("presetlist").show(ui, |ui| {
+                        ui.group(|ui| {
+                            let mut removeindex: Option<usize> = None;
+                            for (index, preset) in self.presetlist.iter().enumerate() {
+                                ui.group(|ui| {
+                                    ui.label(format!("Preset: {}", preset.name));
+                                    if ui.button("Choose").clicked() {
+                                        self.chosenpreset = Some(preset.clone());
+                                        self.guistate = GuiState::ManagePreset;
+                                        removeindex = Some(index);
+                                    }
+                                    if ui.button("Delete").clicked() {
+                                        removeindex = Some(index);
+                                    }
+                                });
+                            }
+                            if let Some(index) = removeindex {
+                                self.presetlist.remove(index);
+                            }
+                        });
                     });
                 });
-            });
+            }
         });
         if self.aboutwindow_visible {
             egui::Window::new("About").show(ctx, |ui| {
@@ -124,14 +137,96 @@ impl App {
         }
     }
 
+    fn render_editpreset(&mut self, ctx: &eframe::egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            egui::SidePanel::left("editpresetleftbar")
+                .default_width(200.0)
+                .show(ctx, |ui| {
+                    ui.vertical(|ui| {
+                        if ui.button("<-").clicked() {
+                            self.guistate = GuiState::ManagePreset;
+                        }
+                        if ui.button("Add Client").clicked() {
+                            self.guistate = GuiState::EditClient;
+                            self.newdevices_display = get_ui_devices();
+                            //self.newclient_display"
+                            println!("add client");
+                        }
+                    });
+                });
+
+            eframe::egui::CentralPanel::default().show(ctx, |ui| {
+                if let Some(chosenpreset) = self.chosenpreset.as_mut() {
+                    ui.label(format!("Client list for Preset {}:", chosenpreset.name));
+                    ScrollArea::both().id_salt("clientlist").show(ui, |ui| {
+                        ui.group(|ui| {
+                            let mut removeindex: Option<usize> = None;
+                            for (i, client) in chosenpreset.clients.iter().enumerate() {
+                                ui.group(|ui| {
+                                    ui.vertical(|ui| {
+                                        ui.label(format!("Client: {}", client.name));
+                                        ui.label("Devices:");
+                                        for dev in client.devices.iter() {
+                                            ui.label(format!("- {}", dev.get_name()));
+                                        }
+                                        if ui.button("Delete").clicked() {
+                                            removeindex = Some(i);
+                                        }
+                                    });
+                                });
+                            }
+                            if let Some(i) = removeindex {
+                                chosenpreset.clients.remove(i);
+                            }
+                        });
+                    });
+                }
+            });
+        });
+    }
+
+    fn render_managepreset(&mut self, ctx: &eframe::egui::Context) {
+        egui::SidePanel::left("managepresetbar")
+            .default_width(200.0)
+            .show(ctx, |ui| {
+                ui.vertical(|ui| {
+                    if ui.button("Overview").clicked() {
+                        println!("overview");
+                    }
+                    if ui.button("Edit Preset").clicked() {
+                        self.guistate = GuiState::EditPreset;
+                    }
+                    if ui.button("Export").clicked() {
+                        // TODO: export as TOML
+                    }
+                    ui.add_space(30.0);
+                    if ui.button("Unchoose").clicked() {
+                        let preset = self.chosenpreset.take();
+                        if let Some(preset) = preset {
+                            self.presetlist.push(preset);
+                        }
+                    }
+                });
+            });
+
+        eframe::egui::CentralPanel::default().show(ctx, |ui| {
+            if let Some(chosenpreset) = self.chosenpreset.as_ref() {
+                ui.label(format!("Preset: {}", chosenpreset.name));
+            }
+        });
+    }
+
     fn render_editclient(&mut self, ctx: &eframe::egui::Context) {
         egui::SidePanel::right("devicelistpanel")
             .default_width(400.0)
             .show(ctx, |ui| {
-                if ui.button("Refresh device list").clicked() {
-                    self.newdevices_display = get_ui_devices();
-                }
-                if self.newdevices_display.len() != 0 {
+                ui.horizontal(|ui| {
+                    ui.label("Devices:");
+                    if ui.button("Refresh device list").clicked() {
+                        self.newdevices_display = get_ui_devices();
+                    }
+                });
+                if !self.newdevices_display.is_empty() {
                     ui.vertical(|ui| {
                         ScrollArea::both().id_salt("devicelist").show(ui, |ui| {
                             ui.group(|ui| {
@@ -154,7 +249,7 @@ impl App {
                 ui.vertical(|ui| {
                     ui.group(|ui| {
                         ui.horizontal(|ui| {
-                            ui.label("Name:")
+                            ui.label("Client name:")
                                 .on_hover_cursor(egui::CursorIcon::Help)
                                 .on_hover_text(
                                     "The player name, for identifying instances. Eg. \"Player 1\"",
@@ -168,10 +263,13 @@ impl App {
                             ui.label("Display:")
                                 .on_hover_cursor(egui::CursorIcon::Help)
                                 .on_hover_text("The display ID to use. Eg. \":30\", \"wayland-2\"");
+                            /*
                             ui.add(
+                                 *
                                 egui::TextEdit::singleline(&mut self.newclient_display)
                                     .desired_width(250.0),
                             );
+                            */
                         });
                         ui.horizontal(|ui| {
                             ui.label("Backend:")
@@ -182,38 +280,70 @@ impl App {
                             ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
                             ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
                         });
-                        let add_button = ui.button("+");
-                        if add_button.clicked() {
-                            // lose focus, so space/enter doesn't spam click the add button
-                            add_button.surrender_focus();
-                            let devices: Vec<Device> = self
-                                .newdevices_display
-                                .iter()
-                                .map(|gd| gd.device.clone())
-                                .collect();
-
-                            match Client::new(
-                                self.newclientname_display.clone(),
-                                self.newclient_display.clone(),
-                                &devices,
-                                self.newbackend_display.clone(),
-                            ) {
-                                Ok(client) => {
-                                    self.clientlist.push(client);
-                                    // refresh client list
-                                    ctx.request_repaint();
-                                }
-                                Err(err) => self.alertlist.push(err.to_string()),
+                        ui.horizontal(|ui| {
+                            if ui.button("Save").clicked() {
+                                self.guistate = GuiState::EditPreset;
+                                let devices: Vec<Device> = self
+                                    .newdevices_display
+                                    .iter()
+                                    .filter(|dev| dev.chosen)
+                                    .map(|dev| dev.device.clone())
+                                    .collect();
+                                // create client
+                                self.chosenpreset.as_mut().unwrap().clients.push(
+                                    Client::new(
+                                        self.newclientname_display.to_owned(),
+                                        ":1".to_owned(),
+                                        &devices,
+                                        self.newbackend_display,
+                                    )
+                                    .unwrap(),
+                                );
+                                self.newclientname_display = "".to_owned();
                             }
-                        }
+                            if ui.button("Cancel").clicked() {
+                                self.guistate = GuiState::EditPreset;
+                                self.newclientname_display = "".to_owned();
+                            }
+                        });
 
+                        //if add_button.clicked() {
+                        // lose focus, so space/enter doesn't spam click the add button
+                        //add_button.surrender_focus();
+                        /*
+                         *
+                         *
+                        let devices: Vec<Device> = self
+                            .newdevices_display
+                            .iter()
+                            .map(|gd| gd.device.clone())
+                            .collect();
+
+                        match Client::new(
+                            self.newclientname_display.clone(),
+                            self.newclient_display.clone(),
+                            &devices,
+                            self.newbackend_display.clone(),
+                        ) {
+                            Ok(client) => {
+                                self.clientlist.push(client);
+                                // refresh client list
+                                ctx.request_repaint();
+                            }
+                            Err(err) => self.alertlist.push(err.to_string()),
+                        }
+                        */
+                        //}
+
+                        /*
+                         *
                         if self.clientlist.len() != 0 {
                             ScrollArea::both().id_salt("clientlist").show(ui, |ui| {
                                 ui.vertical(|ui| {
                                     self.clientlist.retain_mut(|x| x.is_alive());
                                     for client in &mut self.clientlist {
                                         ui.group(|ui| {
-                                            ui.label(format!("Client {}", client.pid));
+                                            //ui.label(format!("Client {}", client.pid));
                                             ui.group(|ui| {
                                                 ui.label(format!("Name: {}", client.name));
                                             });
@@ -233,6 +363,7 @@ impl App {
                                 });
                             });
                         }
+                        */
                     });
                 });
             });
