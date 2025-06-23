@@ -1,5 +1,5 @@
-use crate::types::{Backend, Client, Device, DeviceList, get_devices};
-use eframe::egui::{self, ScrollArea};
+use crate::types::{Backend, Client, Device, DeviceList, GuiState, Preset, get_devices};
+use eframe::egui::{self, ScrollArea, TextEdit};
 
 // TODO: do all the launching, save file location spoofing, etc. from the program
 
@@ -7,11 +7,15 @@ struct App {
     // TODO: dont forget to tell the user what's wrong with the arguments
     alertlist: Vec<String>,
     clientlist: Vec<Client>,
+    guistate: GuiState,
     newclient_display: String,
-    newplayername_display: String,
+    newpresetname_display: String,
+    newclientname_display: String,
     newdevices_display: Vec<GuiDevice>,
     newbackend_display: Backend,
     aboutwindow_visible: bool,
+    presetlist: Vec<Preset>,
+    chosenpreset: Option<Preset>,
 }
 
 impl Drop for App {
@@ -28,11 +32,15 @@ impl Default for App {
         Self {
             alertlist: vec![],
             clientlist: vec![],
+            guistate: GuiState::MainMenu,
             newclient_display: ":1".to_owned(),
-            newplayername_display: "".to_owned(),
-            newdevices_display: vec![],
+            newpresetname_display: "".to_owned(),
+            newclientname_display: "".to_owned(),
+            newdevices_display: get_ui_devices(),
             newbackend_display: Backend::Native,
             aboutwindow_visible: false,
+            presetlist: vec![],
+            chosenpreset: None,
         }
     }
 }
@@ -42,21 +50,86 @@ struct GuiDevice {
     chosen: bool,
 }
 
+fn get_ui_devices() -> Vec<GuiDevice> {
+    get_devices()
+        .into_iter()
+        .map(|dev| GuiDevice {
+            device: dev,
+            chosen: false,
+        })
+        .collect()
+}
+
 impl eframe::App for App {
-    fn update(&mut self, ctx: &eframe::egui::Context, _frame: &mut eframe::Frame) {
+    fn update(&mut self, ctx: &eframe::egui::Context, _: &mut eframe::Frame) {
+        match self.guistate {
+            GuiState::MainMenu => self.render_mainmenu(&ctx),
+            GuiState::EditClient => self.render_editclient(&ctx),
+            _ => {}
+        }
+    }
+}
+
+impl App {
+    fn render_mainmenu(&mut self, ctx: &eframe::egui::Context) {
+        egui::CentralPanel::default().show(ctx, |ui| {
+            ui.horizontal(|ui| {
+                ui.heading("Splinux");
+
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
+                    if ui.button("About").clicked() {
+                        self.aboutwindow_visible = !self.aboutwindow_visible;
+                    }
+                });
+            });
+
+            ui.horizontal(|ui| {
+                ui.label("Preset name:");
+                ui.add(TextEdit::singleline(&mut self.newpresetname_display).desired_width(150.0));
+            });
+            if ui.button("Create new preset").clicked() {
+                let preset = Preset::new(self.newpresetname_display.to_owned(), vec![]);
+                self.presetlist.push(preset);
+            }
+
+            ui.vertical(|ui| {
+                ScrollArea::both().id_salt("presetlist").show(ui, |ui| {
+                    ui.group(|ui| {
+                        for preset in self.presetlist.iter() {
+                            ui.group(|ui| {
+                                if ui.button("Choose").clicked() {
+                                    self.chosenpreset = Some(preset.clone());
+                                    self.guistate = GuiState::EditPreset;
+                                }
+                                ui.label(format!("Preset: {}", preset.name));
+                            });
+                        }
+                    });
+                });
+            });
+        });
+        if self.aboutwindow_visible {
+            egui::Window::new("About").show(ctx, |ui| {
+                ui.label("Splinux");
+                ui.label(format!(
+                    "Version {}",
+                    option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
+                ));
+                ui.label("This program comes with absolutely no warranty.");
+                ui.hyperlink_to(
+                    "See the GNU General Public License, version 3 for details.",
+                    "https://www.gnu.org/licenses/gpl-3.0.html",
+                );
+            });
+        }
+    }
+
+    fn render_editclient(&mut self, ctx: &eframe::egui::Context) {
         egui::SidePanel::right("devicelistpanel")
             .default_width(400.0)
             .show(ctx, |ui| {
                 if ui.button("Refresh device list").clicked() {
-                    let devices: Vec<GuiDevice> = get_devices()
-                        .iter()
-                        .map(|dev| GuiDevice {
-                            device: dev.clone(),
-                            chosen: false,
-                        })
-                        .collect();
-
-                    self.newdevices_display = devices;
+                    self.newdevices_display = get_ui_devices();
                 }
                 if self.newdevices_display.len() != 0 {
                     ui.vertical(|ui| {
@@ -78,31 +151,6 @@ impl eframe::App for App {
 
         egui::CentralPanel::default().show(ctx, |ui| {
             ScrollArea::both().id_salt("mainscroll").show(ui, |ui| {
-                ui.horizontal(|ui| {
-                    ui.heading("Splinux");
-
-                    ui.with_layout(egui::Layout::right_to_left(egui::Align::TOP), |ui| {
-                        if ui.button("About").clicked() {
-                            self.aboutwindow_visible = !self.aboutwindow_visible;
-                        }
-                    });
-                });
-                if ui.button("Create new preset").clicked() {
-                    println!("create preset");
-                    let devices = DeviceList {
-                        devices: get_devices(),
-                    };
-                    for device in devices.devices.iter() {
-                        println!(
-                            "device name: {}\ndevice type: {}\ndevice namenum: {}",
-                            device.get_name(),
-                            device.devicetype,
-                            device.namenum.unwrap(),
-                        );
-                    }
-                    println!("{}", toml::to_string(&devices).unwrap());
-                }
-
                 ui.vertical(|ui| {
                     ui.group(|ui| {
                         ui.horizontal(|ui| {
@@ -112,7 +160,7 @@ impl eframe::App for App {
                                     "The player name, for identifying instances. Eg. \"Player 1\"",
                                 );
                             ui.add(
-                                egui::TextEdit::singleline(&mut self.newplayername_display)
+                                egui::TextEdit::singleline(&mut self.newclientname_display)
                                     .desired_width(250.0),
                             );
                         });
@@ -124,16 +172,6 @@ impl eframe::App for App {
                                 egui::TextEdit::singleline(&mut self.newclient_display)
                                     .desired_width(250.0),
                             );
-                        });
-                        ui.horizontal(|ui| {
-                            ui.label("Devices:")
-                                .on_hover_cursor(egui::CursorIcon::Help)
-                                .on_hover_text(
-                                    "The input devices' IDs, seperated with commas. Eg. \"25,28\"",
-                                );
-                            /*ui.add(
-                                egui::TextEdit::singleline(&mut self.newdevices_display).desired_width(250.0),
-                            );*/
                         });
                         ui.horizontal(|ui| {
                             ui.label("Backend:")
@@ -155,7 +193,7 @@ impl eframe::App for App {
                                 .collect();
 
                             match Client::new(
-                                self.newplayername_display.clone(),
+                                self.newclientname_display.clone(),
                                 self.newclient_display.clone(),
                                 &devices,
                                 self.newbackend_display.clone(),
@@ -177,10 +215,10 @@ impl eframe::App for App {
                                         ui.group(|ui| {
                                             ui.label(format!("Client {}", client.pid));
                                             ui.group(|ui| {
-                                                ui.label(format!("Display: {}", client.display));
+                                                ui.label(format!("Name: {}", client.name));
                                             });
                                             ui.group(|ui| {
-                                                //ui.label(format!("Devices: {}", client.devices));
+                                                ui.label(format!("Display: {}", client.display));
                                             });
                                             ui.group(|ui| {
                                                 ui.label(format!("Backend: {}", client.backend));
@@ -199,20 +237,6 @@ impl eframe::App for App {
                 });
             });
         });
-        if self.aboutwindow_visible {
-            egui::Window::new("About").show(ctx, |ui| {
-                ui.label("Splinux");
-                ui.label(format!(
-                    "Version {}",
-                    option_env!("CARGO_PKG_VERSION").unwrap_or("unknown")
-                ));
-                ui.label("This program comes with absolutely no warranty.");
-                ui.hyperlink_to(
-                    "See the GNU General Public License, version 3 for details.",
-                    "https://www.gnu.org/licenses/gpl-3.0.html",
-                );
-            });
-        }
     }
 }
 

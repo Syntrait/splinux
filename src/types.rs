@@ -53,13 +53,36 @@ pub enum ClientError {
 }
 
 // used by gui.rs
+
+#[derive(Serialize, Deserialize)]
 pub struct Client {
     pub name: String,
     pub pid: u32,
+    #[serde(skip_serializing, skip_deserializing)]
     proc: Option<Child>,
     pub devices: Vec<Device>,
     pub display: String,
     pub backend: Backend,
+}
+
+impl Clone for Client {
+    fn clone(&self) -> Self {
+        Self {
+            name: self.name.to_owned(),
+            pid: self.pid,
+            proc: None,
+            devices: self.devices.clone(),
+            display: self.display.to_owned(),
+            backend: self.backend,
+        }
+    }
+}
+
+pub enum GuiState {
+    MainMenu,     // Select a preset
+    EditPreset,   // Create & Edit preset
+    ManagePreset, // Manage the preset (start/stop individual clients, restart, switch to edit mode buttton)
+    EditClient,
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -92,9 +115,16 @@ impl Device {
     }
 }
 
-pub struct Config {
+#[derive(Serialize, Deserialize, Clone)]
+pub struct Preset {
     pub name: String,
     pub clients: Vec<Client>,
+}
+
+impl Preset {
+    pub fn new(name: String, clients: Vec<Client>) -> Self {
+        Self { name, clients }
+    }
 }
 
 #[derive(Serialize, Deserialize)]
@@ -102,7 +132,7 @@ pub struct DeviceList {
     pub devices: Vec<Device>,
 }
 
-#[derive(PartialEq, Clone)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum Backend {
     Enigo,
     Native,
