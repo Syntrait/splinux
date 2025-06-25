@@ -1,6 +1,8 @@
+// TODO: Rename this file to native_backend.rs
+
 use crate::types::{
     BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START, BTN_THUMBL, BTN_THUMBR,
-    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, ClientError, Device, DeviceType, StateCommand,
+    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, Device, DeviceType,
     get_devices,
 };
 use anyhow::{Context, Result};
@@ -146,7 +148,7 @@ impl Peripheral {
         Ok(())
     }
 
-    fn run(&mut self, rx: Receiver<StateCommand>) -> Result<()> {
+    fn run(&mut self, rx: Receiver<BackendCommand>) -> Result<()> {
         if let Err(x) = self.evdev_device.grab() {
             eprintln!("Couldn't grab the input device, continuing anyways.");
             eprintln!("{}: {}", x.kind(), x.to_string());
@@ -154,10 +156,10 @@ impl Peripheral {
 
         loop {
             match rx.try_recv() {
-                Ok(StateCommand::TerminateClient) => {
+                Err(TryRecvError::Empty) => {}
+                Ok(BackendCommand::Terminate) => {
                     return Ok(());
                 }
-                Err(TryRecvError::Empty) => {}
                 Err(TryRecvError::Disconnected) => {
                     return Err(TryRecvError::Disconnected)?;
                 }
@@ -397,7 +399,7 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
     }))
 }
 
-pub fn client(devices: String, displayvar: String, rx: Receiver<StateCommand>) {
+pub fn client(devices: String, displayvar: String, rx: Receiver<BackendCommand>) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
     let mut handles: Vec<JoinHandle<()>> = vec![];
 

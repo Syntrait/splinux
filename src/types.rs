@@ -1,14 +1,17 @@
 use std::{
     collections::HashMap,
-    env::args,
     fmt::Display,
     fs::read_dir,
+    io::Read,
     os::unix::fs::FileTypeExt,
     process::{Child, Command},
+    str::from_utf8,
+    thread::spawn,
 };
 
 use anyhow::Result;
 use evdev::{Device as EvdevDevice, EventType, KeyCode};
+use flume::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
@@ -42,8 +45,8 @@ pub enum DeviceType {
 
 #[derive(Debug, Error)]
 pub enum ClientError {
-    #[error("Couldn't spawn the client process")]
-    SpawnError,
+    #[error("run() was called, but child already exists")]
+    AlreadySpawnedError,
     #[error("Unsupported")]
     UnsupportedError,
     #[error("Couldn't open the X11 DISPLAY")]
@@ -53,7 +56,6 @@ pub enum ClientError {
 }
 
 // used by gui.rs
-
 #[derive(Serialize, Deserialize)]
 pub struct Client {
     pub name: String,
@@ -78,8 +80,12 @@ impl Clone for Client {
     }
 }
 
-pub enum StateCommand {
-    TerminateClient,
+pub enum ClientCommand {
+    GetDisplay(Sender<String>),
+}
+
+pub enum BackendCommand {
+    Terminate,
 }
 
 pub enum GuiState {
@@ -273,35 +279,31 @@ impl Client {
     }
 
     pub fn run(&mut self) -> Result<()> {
-        let args: Vec<String> = args().collect();
-        let display: &str = self.display.as_str();
-        // TODO: make this properly
-        let proc = Command::new("gamescope")
-            .args([
-                "-W",
-                "1920",
-                "-H",
-                "1080",
-                "--backend",
-                "sdl",
-                "--",
-                display,
-                "-i",
-                "",
-                "-b",
-                "native",
-            ])
-            .env(
-                if display.contains(":") {
-                    "DISPLAY"
-                } else {
-                    "WAYLAND_DISPLAY"
-                },
-                display,
-            )
+        if self.is_alive() {
+            return Err(ClientError::AlreadySpawnedError)?;
+        }
+        // TODO: gamescope arguments
+        let mut proc = Command::new("gamescope")
+            .args(["-W", "1920", "-H", "1080", "--backend", "sdl", "--", ""])
             .spawn()?;
+
+        if let Some(stdout) = proc.stdout.as_mut() {
+            let mut char: Vec<u8> = vec![];
+            loop {
+                char.clear();
+                stdout.read(&mut char).unwrap();
+                let text = from_utf8(&char).unwrap();
+
+                if text.contains("Starting Xwayland on ") {
+                    self.display = text.split("on ").nth(1).unwrap().to_owned();
+                    break;
+                }
+            }
+        }
+
         let pid = proc.id();
         self.pid = Some(pid);
+        self.proc = Some(proc);
 
         Ok(())
     }

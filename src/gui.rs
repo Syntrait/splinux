@@ -1,8 +1,8 @@
-use std::fs::read_to_string;
+use std::{fs::read_to_string, thread::spawn};
 
 use crate::{
     native_client,
-    types::{Backend, Client, Device, GuiState, Preset, StateCommand, get_devices},
+    types::{Backend, BackendCommand, Client, Device, GuiState, Preset, get_devices},
 };
 use anyhow::Result;
 use eframe::egui::{self, ScrollArea, TextEdit};
@@ -256,7 +256,6 @@ impl App {
                                 ui.label(format!("- {}", dev.get_name()));
                             }
                             if ui.button("Start").clicked() {
-                                //
                                 let all_devices = get_devices();
 
                                 for dev in client.devices.iter_mut() {
@@ -266,12 +265,28 @@ impl App {
                                         .unwrap()
                                         .namenum
                                 }
+                                drop(all_devices);
 
-                                let (tx, rx) = unbounded::<StateCommand>();
+                                let deviceiter = client
+                                    .devices
+                                    .iter()
+                                    .map(|dev| dev.namenum.unwrap().to_string());
 
-                                //native_client::client(devices, displayvar, rx);
+                                let mut devices = "".to_owned();
 
-                                // start gamescope -- bwrap
+                                for (index, device) in deviceiter.enumerate() {
+                                    if index == 0 {
+                                        devices = device;
+                                    } else {
+                                        devices = devices + "," + &device;
+                                    }
+                                }
+
+                                let (tx, rx) = unbounded::<BackendCommand>();
+
+                                client.run().unwrap();
+
+                                native_client::client(devices, client.display.clone(), rx);
                             }
                             if ui.button("Delete").clicked() {
                                 removeindex = Some(index);
