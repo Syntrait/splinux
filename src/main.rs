@@ -1,12 +1,12 @@
 mod client;
 mod gui;
-mod native_client;
+mod native_backend;
 mod types;
 
 use clap::{Arg, ArgAction, Command};
 use client::client;
 use gui::start;
-use native_client::client as nativeclient;
+use native_backend::backend as nativebackend;
 use std::env::args;
 use types::Backend;
 
@@ -73,6 +73,7 @@ fn main() {
 
             match backend {
                 Backend::Native => {
+                    // TODO: headless support
                     //nativeclient(input.to_owned(), "".to_owned());
                 }
                 Backend::Enigo => {

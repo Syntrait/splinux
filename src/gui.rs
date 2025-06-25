@@ -1,7 +1,7 @@
 use std::{fs::read_to_string, thread::spawn};
 
 use crate::{
-    native_client,
+    native_backend,
     types::{Backend, BackendCommand, Client, Device, GuiState, Preset, get_devices},
 };
 use anyhow::Result;
@@ -286,7 +286,7 @@ impl App {
 
                                 client.run().unwrap();
 
-                                native_client::client(devices, client.display.clone(), rx);
+                                native_backend::backend(devices, client.display.clone(), rx);
                             }
                             if ui.button("Delete").clicked() {
                                 removeindex = Some(index);

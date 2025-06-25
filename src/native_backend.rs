@@ -1,5 +1,3 @@
-// TODO: Rename this file to native_backend.rs
-
 use crate::types::{
     BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START, BTN_THUMBL, BTN_THUMBR,
     BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, Device, DeviceType,
@@ -399,7 +397,7 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
     }))
 }
 
-pub fn client(devices: String, displayvar: String, rx: Receiver<BackendCommand>) {
+pub fn backend(devices: String, displayvar: String, rx: Receiver<BackendCommand>) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
     let mut handles: Vec<JoinHandle<()>> = vec![];
 
