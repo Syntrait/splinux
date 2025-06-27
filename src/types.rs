@@ -65,6 +65,15 @@ pub struct Client {
     pub devices: Vec<Device>,
     pub display: String,
     pub backend: Backend,
+    pub geometry: WindowGeometry,
+}
+
+#[derive(Copy, Clone, Serialize, Deserialize)]
+pub struct WindowGeometry {
+    pub x: u32,
+    pub y: u32,
+    pub width: u32,
+    pub height: u32,
 }
 
 impl Clone for Client {
@@ -76,6 +85,7 @@ impl Clone for Client {
             devices: self.devices.clone(),
             display: self.display.to_owned(),
             backend: self.backend,
+            geometry: self.geometry,
         }
     }
 }
@@ -261,6 +271,7 @@ impl Client {
         display: String,
         devices: &Vec<Device>,
         backend: Backend,
+        geometry: WindowGeometry,
     ) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
             return Err(ClientError::UnsupportedError)?;
@@ -275,6 +286,7 @@ impl Client {
             devices,
             display,
             backend,
+            geometry,
         })
     }
 
@@ -284,7 +296,16 @@ impl Client {
         }
         // TODO: gamescope arguments
         let mut proc = Command::new("gamescope")
-            .args(["-W", "1920", "-H", "1080", "--backend", "sdl", "--", ""])
+            .args([
+                "-W",
+                self.geometry.width.to_string().as_str(),
+                "-H",
+                self.geometry.height.to_string().as_str(),
+                "--backend",
+                "sdl",
+                "--",
+                "",
+            ])
             .spawn()?;
 
         if let Some(stdout) = proc.stdout.as_mut() {

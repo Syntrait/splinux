@@ -2,7 +2,9 @@ use std::{fs::read_to_string, thread::spawn};
 
 use crate::{
     native_backend,
-    types::{Backend, BackendCommand, Client, Device, GuiState, Preset, get_devices},
+    types::{
+        Backend, BackendCommand, Client, Device, GuiState, Preset, WindowGeometry, get_devices,
+    },
 };
 use anyhow::Result;
 use eframe::egui::{self, ScrollArea, TextEdit};
@@ -18,6 +20,7 @@ struct App {
     newclientname_display: String,
     newdevices_display: Vec<GuiDevice>,
     newbackend_display: Backend,
+    newgeometry_display: WindowGeometry,
     aboutwindow_visible: bool,
     presetlist: Vec<Preset>,
     chosenpreset: Option<Preset>,
@@ -41,6 +44,12 @@ impl Default for App {
             newclientname_display: "".to_owned(),
             newdevices_display: get_ui_devices(),
             newbackend_display: Backend::Native,
+            newgeometry_display: WindowGeometry {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 540,
+            },
             aboutwindow_visible: false,
             presetlist: vec![],
             chosenpreset: None,
@@ -359,6 +368,54 @@ impl App {
                             ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
                         });
                         ui.horizontal(|ui| {
+                            ui.label("Position X:");
+                            let mut x = self.newgeometry_display.x.to_string();
+                            if ui
+                                .add(egui::TextEdit::singleline(&mut x).desired_width(150.0))
+                                .changed()
+                            {
+                                if let Ok(int) = x.parse::<u32>() {
+                                    self.newgeometry_display.x = int;
+                                }
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Position Y:");
+                            let mut y = self.newgeometry_display.y.to_string();
+                            if ui
+                                .add(egui::TextEdit::singleline(&mut y).desired_width(150.0))
+                                .changed()
+                            {
+                                if let Ok(int) = y.parse::<u32>() {
+                                    self.newgeometry_display.y = int;
+                                }
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Width:");
+                            let mut width = self.newgeometry_display.width.to_string();
+                            if ui
+                                .add(egui::TextEdit::singleline(&mut width).desired_width(150.0))
+                                .changed()
+                            {
+                                if let Ok(int) = width.parse::<u32>() {
+                                    self.newgeometry_display.width = int;
+                                }
+                            }
+                        });
+                        ui.horizontal(|ui| {
+                            ui.label("Height:");
+                            let mut height = self.newgeometry_display.height.to_string();
+                            if ui
+                                .add(egui::TextEdit::singleline(&mut height).desired_width(150.0))
+                                .changed()
+                            {
+                                if let Ok(int) = height.parse::<u32>() {
+                                    self.newgeometry_display.height = int;
+                                }
+                            }
+                        });
+                        ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {
                                 self.guistate = GuiState::EditPreset;
                                 let devices: Vec<Device> = self
@@ -374,6 +431,7 @@ impl App {
                                         ":1".to_owned(),
                                         &devices,
                                         self.newbackend_display,
+                                        self.newgeometry_display,
                                     )
                                     .unwrap(),
                                 );

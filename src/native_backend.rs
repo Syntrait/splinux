@@ -1,7 +1,6 @@
 use crate::types::{
     BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START, BTN_THUMBL, BTN_THUMBR,
-    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, Device, DeviceType,
-    get_devices,
+    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, DeviceType,
 };
 use anyhow::{Context, Result};
 use evdev::{AbsoluteAxisCode, Device as EvdevDevice, RelativeAxisCode};
