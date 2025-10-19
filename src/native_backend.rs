@@ -396,6 +396,7 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
     }))
 }
 
+// TODO: switch to using actual device identifiers, instead of their random ids
 pub fn backend(devices: String, displayvar: String, rx: Receiver<BackendCommand>) {
     let dev_nums: Vec<&str> = devices.split(",").collect();
     let mut handles: Vec<JoinHandle<()>> = vec![];
