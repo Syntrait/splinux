@@ -66,6 +66,7 @@ pub struct Client {
     pub display: String,
     pub backend: Backend,
     pub geometry: WindowGeometry,
+    pub command: String,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
@@ -86,6 +87,7 @@ impl Clone for Client {
             display: self.display.to_owned(),
             backend: self.backend,
             geometry: self.geometry,
+            command: self.command.to_owned(),
         }
     }
 }
@@ -133,6 +135,12 @@ impl Device {
             self.name.clone()
         }
     }
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub enum CommandType {
+    SteamLaunch { appid: u32 },
+    Manual { command: String },
 }
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -272,6 +280,7 @@ impl Client {
         devices: &Vec<Device>,
         backend: Backend,
         geometry: WindowGeometry,
+        command: String,
     ) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
             return Err(ClientError::UnsupportedError)?;
@@ -287,6 +296,7 @@ impl Client {
             display,
             backend,
             geometry,
+            command,
         })
     }
 
@@ -304,7 +314,7 @@ impl Client {
                 "--backend",
                 "sdl",
                 "--",
-                "",
+                &self.command,
             ])
             .spawn()?;
 

@@ -3,11 +3,12 @@ use std::{fs::read_to_string, thread::spawn};
 use crate::{
     native_backend,
     types::{
-        Backend, BackendCommand, Client, Device, GuiState, Preset, WindowGeometry, get_devices,
+        Backend, BackendCommand, Client, CommandType, Device, GuiState, Preset, WindowGeometry,
+        get_devices,
     },
 };
 use anyhow::Result;
-use eframe::egui::{self, ScrollArea, TextEdit};
+use eframe::egui::{self, ComboBox, ScrollArea, TextEdit};
 use flume::unbounded;
 use rfd::FileDialog;
 
@@ -21,6 +22,7 @@ struct App {
     newdevices_display: Vec<GuiDevice>,
     newbackend_display: Backend,
     newgeometry_display: WindowGeometry,
+    newcommand_display: CommandType,
     aboutwindow_visible: bool,
     presetlist: Vec<Preset>,
     chosenpreset: Option<Preset>,
@@ -50,6 +52,7 @@ impl Default for App {
                 width: 1920,
                 height: 540,
             },
+            newcommand_display: CommandType::SteamLaunch { appid: 0 },
             aboutwindow_visible: false,
             presetlist: vec![],
             chosenpreset: None,
@@ -108,12 +111,12 @@ impl App {
                 }
                 if ui.button("Load a preset").clicked() {
                     if let Some(file) = FileDialog::new()
-                        .add_filter("TOML config", &["toml"])
+                        .add_filter("YAML config", &["yaml"])
                         .pick_file()
                     {
                         if let Ok(content) = read_to_string(file) {
-                            let preset: Result<Preset, toml::de::Error> =
-                                toml::from_str(content.as_str());
+                            let preset: Result<Preset, serde_yaml::Error> =
+                                serde_yaml::from_str(&content);
 
                             if let Ok(preset) = preset {
                                 self.presetlist.push(preset);
@@ -224,9 +227,9 @@ impl App {
                     }
                     if ui.button("Export").clicked() {
                         if let Some(preset) = self.chosenpreset.as_ref() {
-                            if let Ok(content) = toml::to_string(&preset) {
+                            if let Ok(content) = serde_yaml::to_string(&preset) {
                                 if let Some(file) = FileDialog::new()
-                                    .add_filter("TOML config", &["toml"])
+                                    .add_filter("YAML config", &["yaml"])
                                     .save_file()
                                 {
                                     if let Err(err) = std::fs::write(file, content) {
@@ -415,6 +418,15 @@ impl App {
                                 }
                             }
                         });
+                        // TODO: Command
+                        //
+                        ComboBox::from_label("Command:").show_ui(ui, |ui| {
+                            ui.selectable_value(
+                                &mut self.newcommand_display,
+                                CommandType::SteamLaunch { appid: 0 },
+                                "Steam",
+                            );
+                        });
                         ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {
                                 self.guistate = GuiState::EditPreset;
@@ -432,6 +444,8 @@ impl App {
                                         &devices,
                                         self.newbackend_display,
                                         self.newgeometry_display,
+                                        // TODO: Command
+                                        "".to_owned(),
                                     )
                                     .unwrap(),
                                 );

@@ -17,9 +17,9 @@ libc = { version = "0.2.174", optional = true }
 anyhow = "1.0.98"
 thiserror = "2.0.12"
 serde = { version = "1.0.219", features = ["derive"] }
-toml = "0.8.23"
 rfd = "0.15.3"
 flume = "0.11.1"
+serde_yaml = "0.9.34"
 
 [features]
 default = ["xtst"]
