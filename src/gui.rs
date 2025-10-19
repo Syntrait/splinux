@@ -367,8 +367,7 @@ impl App {
                                 .on_hover_text(
                                     "The backend (input sender) to use. Native is recommended.",
                                 );
-                            ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
-                            ui.radio_value(&mut self.newbackend_display, Backend::Enigo, "Enigo");
+                            //ui.radio_value(&mut self.newbackend_display, Backend::Native, "Native");
                         });
                         ui.horizontal(|ui| {
                             ui.label("Position X:");

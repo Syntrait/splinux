@@ -1,10 +1,8 @@
-mod client;
 mod gui;
 mod native_backend;
 mod types;
 
 use clap::{Arg, ArgAction, Command};
-use client::client;
 use gui::start;
 use native_backend::backend as nativebackend;
 use std::env::args;
@@ -42,15 +40,6 @@ fn main() {
                         .action(ArgAction::Set)
                         .num_args(1)
                         .required(true),
-                )
-                .arg(
-                    Arg::new("backend")
-                        .short('b')
-                        .long("backend")
-                        .help("the input sender backend, \"native\" or \"enigo\"")
-                        .action(ArgAction::Set)
-                        .num_args(1)
-                        .default_value("native"),
                 ),
         )
         .get_matches();
@@ -62,24 +51,10 @@ fn main() {
         Some(("run", x)) => {
             let display: &String = x.get_one("display").unwrap();
             let input: &String = x.get_one("input").unwrap();
-            let backend: Backend = if x
-                .get_one("backend")
-                .is_some_and(|x: &String| x.to_lowercase() == "native")
-            {
-                Backend::Native
-            } else {
-                Backend::Enigo
-            };
 
-            match backend {
-                Backend::Native => {
-                    // TODO: headless support
-                    //nativeclient(input.to_owned(), "".to_owned());
-                }
-                Backend::Enigo => {
-                    client(input.to_owned(), display.to_owned());
-                }
-            }
+            // TODO: headless support
+            // TODO: figure out and make this work
+            //nativeclient(input.to_owned(), "".to_owned());
         }
         _ => unreachable!(),
     }

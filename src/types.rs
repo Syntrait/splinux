@@ -162,7 +162,6 @@ pub struct DeviceList {
 
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum Backend {
-    Enigo,
     Native,
 }
 
@@ -256,7 +255,6 @@ impl Display for Backend {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             Backend::Native => write!(f, "Native"),
-            Backend::Enigo => write!(f, "Enigo"),
         }
     }
 }
