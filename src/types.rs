@@ -143,6 +143,12 @@ pub enum CommandType {
     Manual { command: String },
 }
 
+impl CommandType {
+    pub fn as_mut(&mut self) -> &mut Self {
+        self
+    }
+}
+
 #[derive(Serialize, Deserialize, Clone)]
 pub struct Preset {
     pub name: String,

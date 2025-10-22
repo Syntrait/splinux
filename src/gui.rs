@@ -418,14 +418,26 @@ impl App {
                             }
                         });
                         // TODO: Command
-                        //
-                        ComboBox::from_label("Command:").show_ui(ui, |ui| {
+                        ComboBox::from_id_salt("launchmethod").show_ui(ui, |ui| {
                             ui.selectable_value(
                                 &mut self.newcommand_display,
                                 CommandType::SteamLaunch { appid: 0 },
                                 "Steam",
                             );
+                            ui.selectable_value(
+                                &mut self.newcommand_display,
+                                CommandType::Manual {
+                                    command: "".to_owned(),
+                                },
+                                "Manual",
+                            );
                         });
+                        match self.newcommand_display.as_mut() {
+                            CommandType::Manual { command } => {
+                                ui.text_edit_singleline(command);
+                            }
+                            CommandType::SteamLaunch { appid } => {}
+                        }
                         ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {
                                 self.guistate = GuiState::EditPreset;
