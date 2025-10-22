@@ -5,7 +5,6 @@ use crate::types::{
 use anyhow::{Context, Result};
 use evdev::{AbsoluteAxisCode, Device as EvdevDevice, RelativeAxisCode};
 use flume::{Receiver, TryRecvError};
-#[cfg(feature = "xtst")]
 use libc::{c_char, c_int, c_ulong};
 use std::{
     thread::{JoinHandle, spawn},
@@ -19,14 +18,12 @@ use x11rb::{
     connection::Connection, protocol::xtest::ConnectionExt, rust_connection::RustConnection,
 };
 
-#[cfg(feature = "xtst")]
 #[link(name = "X11")]
 unsafe extern "C" {
     fn XOpenDisplay(display_name: *mut c_char) -> *mut Display;
     fn XCloseDisplay(display: *mut Display) -> c_int;
 }
 
-#[cfg(feature = "xtst")]
 #[link(name = "Xtst")]
 unsafe extern "C" {
     fn XTestFakeRelativeMotionEvent(
@@ -38,7 +35,6 @@ unsafe extern "C" {
     fn XFlush(display: *mut Display);
 }
 
-#[cfg(feature = "xtst")]
 #[repr(C)]
 struct Display {
     // silences warnings
@@ -69,13 +65,10 @@ impl Drop for Peripheral {
     }
 }
 
-#[cfg(feature = "xtst")]
 struct DisplayPtr(*mut Display);
 
-#[cfg(feature = "xtst")]
 unsafe impl Send for DisplayPtr {}
 
-#[cfg(feature = "xtst")]
 impl Clone for DisplayPtr {
     fn clone(&self) -> Self {
         let mut null: c_char = 0;
@@ -83,10 +76,8 @@ impl Clone for DisplayPtr {
     }
 }
 
-#[cfg(feature = "xtst")]
 impl Copy for DisplayPtr {}
 
-#[cfg(feature = "xtst")]
 impl DisplayPtr {
     fn new(display: *mut i8) -> Self {
         unsafe {
@@ -128,17 +119,14 @@ impl Peripheral {
                     .create()?,
             );
         } else if self.devicetype == DeviceType::Mouse {
-            #[cfg(feature = "xtst")]
-            {
-                let mut displayparse: c_char = self.displayvar.parse().unwrap();
-                self.display = Some(DisplayPtr::new(&mut displayparse));
-                if let Some(display) = self.display.as_mut() {
-                    if display.0.is_null() {
-                        return Err(ClientError::X11DisplayOpenError)?;
-                    }
-                } else {
+            let mut displayparse: c_char = self.displayvar.parse().unwrap();
+            self.display = Some(DisplayPtr::new(&mut displayparse));
+            if let Some(display) = self.display.as_mut() {
+                if display.0.is_null() {
                     return Err(ClientError::X11DisplayOpenError)?;
                 }
+            } else {
+                return Err(ClientError::X11DisplayOpenError)?;
             }
         }
         println!("Configuration completed for {}", self.path);
@@ -236,26 +224,16 @@ impl Peripheral {
                             if !self.configured {
                                 continue;
                             }
-                            #[cfg(feature = "xtst")]
-                            {
-                                if let Some(display) = self.display.as_mut() {
-                                    unsafe {
-                                        let display = display.to_owned();
-                                        let success =
-                                            XTestFakeRelativeMotionEvent(display.0, value, 0, 0);
-                                        if success == 0 {
-                                            return Err(ClientError::RelativeMovementFail)?;
-                                        }
-                                        XFlush(display.0);
+                            if let Some(display) = self.display.as_mut() {
+                                unsafe {
+                                    let display = display.to_owned();
+                                    let success =
+                                        XTestFakeRelativeMotionEvent(display.0, value, 0, 0);
+                                    if success == 0 {
+                                        return Err(ClientError::RelativeMovementFail)?;
                                     }
+                                    XFlush(display.0);
                                 }
-                            }
-                            #[cfg(not(feature = "xtst"))]
-                            {
-                                // absolute cursor only
-                                conn.warp_pointer(0, window, 0, 0, 0, 0, value as i16, 0)?;
-
-                                conn.flush()?;
                             }
                         }
                         RelativeAxisCode::REL_Y => {
@@ -263,27 +241,16 @@ impl Peripheral {
                             if !self.configured {
                                 continue;
                             }
-                            #[cfg(feature = "xtst")]
-                            {
-                                if let Some(display) = self.display.as_mut() {
-                                    unsafe {
-                                        let display = display.to_owned();
-                                        let success =
-                                            XTestFakeRelativeMotionEvent(display.0, 0, value, 0);
-                                        if success == 0 {
-                                            return Err(ClientError::RelativeMovementFail)?;
-                                        }
-                                        XFlush(display.0);
+                            if let Some(display) = self.display.as_mut() {
+                                unsafe {
+                                    let display = display.to_owned();
+                                    let success =
+                                        XTestFakeRelativeMotionEvent(display.0, 0, value, 0);
+                                    if success == 0 {
+                                        return Err(ClientError::RelativeMovementFail)?;
                                     }
+                                    XFlush(display.0);
                                 }
-                            }
-
-                            #[cfg(not(feature = "xtst"))]
-                            {
-                                // absolute cursor only
-                                conn.warp_pointer(0, window, 0, 0, 0, 0, 0, value as i16)?;
-
-                                conn.flush()?;
                             }
                         }
                         RelativeAxisCode::REL_WHEEL => {
