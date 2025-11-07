@@ -279,26 +279,11 @@ impl App {
                                 }
                                 drop(all_devices);
 
-                                let deviceiter = client
-                                    .devices
-                                    .iter()
-                                    .map(|dev| dev.namenum.unwrap().to_string());
-
-                                let mut devices = "".to_owned();
-
-                                for (index, device) in deviceiter.enumerate() {
-                                    if index == 0 {
-                                        devices = device;
-                                    } else {
-                                        devices = devices + "," + &device;
-                                    }
-                                }
-
                                 let (tx, rx) = unbounded::<BackendCommand>();
 
                                 client.run().unwrap();
 
-                                native_backend::backend(devices, client.display.clone(), rx);
+                                //native_backend::backend(devices, client.display.clone(), rx);
                             }
                             if ui.button("Delete").clicked() {
                                 removeindex = Some(index);
@@ -436,7 +421,16 @@ impl App {
                             CommandType::Manual { command } => {
                                 ui.text_edit_singleline(command);
                             }
-                            CommandType::SteamLaunch { appid } => {}
+                            CommandType::SteamLaunch { appid } => {
+                                let mut steamlaunchstring: String = appid.to_string();
+                                let steamlaunchstring_old: String = steamlaunchstring.clone();
+                                ui.text_edit_singleline(&mut steamlaunchstring);
+                                if steamlaunchstring != steamlaunchstring_old {
+                                    if let Ok(pars) = steamlaunchstring.parse::<u32>() {
+                                        *appid = pars;
+                                    }
+                                }
+                            }
                         }
                         ui.horizontal(|ui| {
                             if ui.button("Save").clicked() {
