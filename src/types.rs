@@ -69,6 +69,8 @@ pub struct Client {
     pub backend: Backend,
     pub geometry: WindowGeometry,
     pub command: CommandType,
+    #[serde(skip_serializing, skip_deserializing)]
+    pub handle: Option<Sender<BackendCommand>>,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
@@ -90,6 +92,7 @@ impl Clone for Client {
             backend: self.backend,
             geometry: self.geometry,
             command: self.command.to_owned(),
+            handle: self.handle.clone(),
         }
     }
 }
@@ -100,6 +103,8 @@ pub enum ClientCommand {
 
 pub enum BackendCommand {
     Terminate,
+    PauseGrab,
+    UnpauseGrab,
 }
 
 pub enum GuiState {
@@ -171,6 +176,18 @@ pub struct DeviceList {
 #[derive(Serialize, Deserialize, PartialEq, Clone, Copy)]
 pub enum Backend {
     Native,
+}
+
+pub fn fix_namenums(devices: &mut Vec<Device>) {
+    let all_devices = get_devices();
+
+    for dev in devices.iter_mut() {
+        dev.namenum = all_devices
+            .iter()
+            .find(|x| x.get_name() == dev.get_name())
+            .unwrap()
+            .namenum
+    }
 }
 
 pub fn get_devices() -> Vec<Device> {
@@ -303,6 +320,7 @@ impl Client {
             backend,
             geometry,
             command,
+            handle: None,
         })
     }
 

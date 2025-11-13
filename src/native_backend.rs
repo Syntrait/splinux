@@ -1,6 +1,7 @@
 use crate::types::{
     BTN_EAST, BTN_MODE, BTN_NORTH, BTN_SELECT, BTN_SOUTH, BTN_START, BTN_THUMBL, BTN_THUMBR,
-    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, DeviceType,
+    BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, Device, DeviceType,
+    fix_namenums,
 };
 use anyhow::{Context, Result};
 use evdev::{AbsoluteAxisCode, Device as EvdevDevice, RelativeAxisCode};
@@ -144,6 +145,12 @@ impl Peripheral {
                 Err(TryRecvError::Empty) => {}
                 Ok(BackendCommand::Terminate) => {
                     return Ok(());
+                }
+                Ok(BackendCommand::PauseGrab) => {
+                    let _ = self.evdev_device.ungrab();
+                }
+                Ok(BackendCommand::UnpauseGrab) => {
+                    let _ = self.evdev_device.grab();
                 }
                 Err(TryRecvError::Disconnected) => {
                     return Err(TryRecvError::Disconnected)?;
@@ -364,20 +371,22 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
 }
 
 // TODO: switch to using actual device identifiers, instead of their random ids
-pub fn backend(devices: String, displayvar: String, rx: Receiver<BackendCommand>) {
-    let dev_nums: Vec<&str> = devices.split(",").collect();
+pub fn backend(mut devices: Vec<Device>, displayvar: String, rx: Receiver<BackendCommand>) {
     let mut handles: Vec<JoinHandle<()>> = vec![];
+    fix_namenums(&mut devices);
 
-    for device_num in dev_nums {
-        let path = format!("/dev/input/event{}", device_num);
-        let mut perip = Peripheral::new(path, device_num.to_owned(), &displayvar).unwrap();
-        let rx = rx.clone();
+    for device in devices {
+        if let Some(devid) = device.namenum {
+            let path = format!("/dev/input/event{}", devid);
+            let mut perip = Peripheral::new(path, devid.to_string(), &displayvar).unwrap();
+            let rx = rx.clone();
 
-        let handle = spawn(move || {
-            perip.run(rx).unwrap();
-        });
+            let handle = spawn(move || {
+                perip.run(rx).unwrap();
+            });
 
-        handles.push(handle);
+            handles.push(handle);
+        }
     }
 
     for handle in handles {

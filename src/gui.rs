@@ -267,23 +267,33 @@ impl App {
                             for dev in client.devices.iter() {
                                 ui.label(format!("- {}", dev.get_name()));
                             }
-                            if ui.button("Start").clicked() {
-                                let all_devices = get_devices();
-
-                                for dev in client.devices.iter_mut() {
-                                    dev.namenum = all_devices
-                                        .iter()
-                                        .find(|x| x.get_name() == dev.get_name())
+                            let isclientalive = client.is_alive();
+                            if ui
+                                .button(if isclientalive { "Stop" } else { "Start" })
+                                .clicked()
+                            {
+                                if isclientalive {
+                                    client
+                                        .handle
+                                        .take()
                                         .unwrap()
-                                        .namenum
+                                        .send(BackendCommand::Terminate)
+                                        .unwrap();
+                                    client.kill();
+                                } else {
+                                    let (tx, rx) = unbounded::<BackendCommand>();
+
+                                    client.run().unwrap();
+
+                                    client.handle = Some(tx);
+
+                                    let clientdevices = client.devices.clone();
+                                    let clientdisplay = client.display.clone();
+
+                                    spawn(move || {
+                                        native_backend::backend(clientdevices, clientdisplay, rx);
+                                    });
                                 }
-                                drop(all_devices);
-
-                                let (tx, rx) = unbounded::<BackendCommand>();
-
-                                client.run().unwrap();
-
-                                //native_backend::backend(devices, client.display.clone(), rx);
                             }
                             if ui.button("Delete").clicked() {
                                 removeindex = Some(index);
