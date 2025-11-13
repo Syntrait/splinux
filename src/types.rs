@@ -61,6 +61,7 @@ pub enum ClientError {
 #[derive(Serialize, Deserialize)]
 pub struct Client {
     pub name: String,
+    #[serde(skip_serializing, skip_deserializing)]
     pub pid: Option<u32>,
     #[serde(skip_serializing, skip_deserializing)]
     proc: Option<Child>,
