@@ -450,7 +450,7 @@ impl App {
                                         self.newbackend_display,
                                         self.newgeometry_display,
                                         // TODO: Command
-                                        "".to_owned(),
+                                        self.newcommand_display.clone(),
                                     )
                                     .unwrap(),
                                 );

@@ -15,6 +15,8 @@ use flume::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
+use crate::launcher::construct_command;
+
 // Gamepad
 pub const BTN_SOUTH: u16 = 304; // A
 pub const BTN_EAST: u16 = 305; // B
@@ -66,7 +68,7 @@ pub struct Client {
     pub display: String,
     pub backend: Backend,
     pub geometry: WindowGeometry,
-    pub command: String,
+    pub command: CommandType,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
@@ -284,7 +286,7 @@ impl Client {
         devices: &Vec<Device>,
         backend: Backend,
         geometry: WindowGeometry,
-        command: String,
+        command: CommandType,
     ) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
             return Err(ClientError::UnsupportedError)?;
@@ -309,18 +311,7 @@ impl Client {
             return Err(ClientError::AlreadySpawnedError)?;
         }
         // TODO: gamescope arguments
-        let mut proc = Command::new("gamescope")
-            .args([
-                "-W",
-                self.geometry.width.to_string().as_str(),
-                "-H",
-                self.geometry.height.to_string().as_str(),
-                "--backend",
-                "sdl",
-                "--",
-                &self.command,
-            ])
-            .spawn()?;
+        let mut proc = construct_command(self.geometry, &self.command).spawn()?;
 
         if let Some(stdout) = proc.stdout.as_mut() {
             let mut char: Vec<u8> = vec![];

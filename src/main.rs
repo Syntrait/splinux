@@ -1,4 +1,5 @@
 mod gui;
+mod launcher;
 mod native_backend;
 mod types;
 
