@@ -1,3 +1,6 @@
+# Currently going through a rewrite, so consider this as an alpha software. I'm a student, so please be understanding about the slow development process.
+# In the meantime, this project might interest you: https://github.com/wunnr/partydeck
+
 # Splinux
 A tool for splitting the screen on Linux, and passing inputs to them
 
