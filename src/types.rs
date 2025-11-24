@@ -9,7 +9,7 @@ use std::{
     thread::spawn,
 };
 
-use anyhow::Result;
+use anyhow::{Result, anyhow};
 use evdev::{Device as EvdevDevice, EventType, KeyCode};
 use flume::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
@@ -179,16 +179,17 @@ pub enum Backend {
     Native,
 }
 
-pub fn fix_namenums(devices: &mut Vec<Device>) {
+pub fn fix_namenums(devices: &mut Vec<Device>) -> Result<()> {
     let all_devices = get_devices();
 
     for dev in devices.iter_mut() {
         dev.namenum = all_devices
             .iter()
             .find(|x| x.get_name() == dev.get_name())
-            .unwrap()
+            .ok_or_else(|| anyhow!("missing device: {}", dev.get_name()))?
             .namenum
     }
+    Ok(())
 }
 
 pub fn get_devices() -> Vec<Device> {

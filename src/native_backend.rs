@@ -370,15 +370,18 @@ fn libinput_key_to_uinput_event(keyid: u16) -> uinput::Event {
     }))
 }
 
-// TODO: switch to using actual device identifiers, instead of their random ids
-pub fn backend(mut devices: Vec<Device>, displayvar: String, rx: Receiver<BackendCommand>) {
+pub fn backend(
+    mut devices: Vec<Device>,
+    displayvar: String,
+    rx: Receiver<BackendCommand>,
+) -> Result<()> {
     let mut handles: Vec<JoinHandle<()>> = vec![];
-    fix_namenums(&mut devices);
+    fix_namenums(&mut devices)?;
 
     for device in devices {
         if let Some(devid) = device.namenum {
             let path = format!("/dev/input/event{}", devid);
-            let mut perip = Peripheral::new(path, devid.to_string(), &displayvar).unwrap();
+            let mut perip = Peripheral::new(path, devid.to_string(), &displayvar)?;
             let rx = rx.clone();
 
             let handle = spawn(move || {
@@ -394,4 +397,5 @@ pub fn backend(mut devices: Vec<Device>, displayvar: String, rx: Receiver<Backen
         // this prevents lockups, because disconnecting one device frees the other (perhaps unpluggable) device
         handle.join().unwrap();
     }
+    Ok(())
 }
