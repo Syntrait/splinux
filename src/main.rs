@@ -1,6 +1,7 @@
 mod gui;
 mod launcher;
 mod native_backend;
+mod saves;
 mod types;
 
 use clap::{Arg, ArgAction, Command};

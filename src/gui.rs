@@ -1,7 +1,8 @@
-use std::{fs::read_to_string, thread::spawn};
+use std::{env::var, fs::read_to_string, thread::spawn};
 
 use crate::{
     native_backend,
+    saves::{construct_main_dir, init_saves},
     types::{
         Backend, BackendCommand, Client, CommandType, Device, GuiState, Preset, WindowGeometry,
         get_devices,
@@ -106,12 +107,15 @@ impl App {
             });
             ui.horizontal(|ui| {
                 if ui.button("Create new preset").clicked() {
+                    init_saves();
+
                     let preset = Preset::new(self.newpresetname_display.to_owned(), vec![]);
                     self.presetlist.push(preset);
                 }
                 if ui.button("Load a preset").clicked() {
                     if let Some(file) = FileDialog::new()
                         .add_filter("YAML config", &["yaml"])
+                        .set_directory(construct_main_dir().join("presets"))
                         .pick_file()
                     {
                         if let Ok(content) = read_to_string(file) {
@@ -230,6 +234,7 @@ impl App {
                             if let Ok(content) = serde_yaml::to_string(&preset) {
                                 if let Some(file) = FileDialog::new()
                                     .add_filter("YAML config", &["yaml"])
+                                    .set_directory(construct_main_dir().join("presets"))
                                     .save_file()
                                 {
                                     if let Err(err) = std::fs::write(file, content) {
