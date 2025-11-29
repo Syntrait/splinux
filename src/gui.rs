@@ -2,6 +2,7 @@ use std::{env::var, fs::read_to_string, thread::spawn};
 
 use crate::{
     native_backend,
+    parser::get_launch_preferences,
     saves::{construct_main_dir, init_saves},
     types::{
         Backend, BackendCommand, Client, CommandType, Device, GuiState, Preset, WindowGeometry,
@@ -9,7 +10,7 @@ use crate::{
     },
 };
 use anyhow::Result;
-use eframe::egui::{self, ComboBox, ScrollArea, TextEdit};
+use eframe::egui::{self, ComboBox, ScrollArea, TextEdit, WidgetText};
 use flume::unbounded;
 use rfd::FileDialog;
 
@@ -53,7 +54,10 @@ impl Default for App {
                 width: 1920,
                 height: 540,
             },
-            newcommand_display: CommandType::SteamLaunch { appid: 0 },
+            newcommand_display: CommandType::SteamLaunch {
+                appid: 0,
+                settings: crate::types::CommandSettings::Normal,
+            },
             aboutwindow_visible: false,
             presetlist: vec![],
             chosenpreset: None,
@@ -418,25 +422,30 @@ impl App {
                             }
                         });
                         // TODO: Command
-                        ComboBox::from_id_salt("launchmethod").show_ui(ui, |ui| {
-                            ui.selectable_value(
-                                &mut self.newcommand_display,
-                                CommandType::SteamLaunch { appid: 0 },
-                                "Steam",
-                            );
-                            ui.selectable_value(
-                                &mut self.newcommand_display,
-                                CommandType::Manual {
-                                    command: "".to_owned(),
-                                },
-                                "Manual",
-                            );
-                        });
+                        ComboBox::from_id_salt("launchmethod")
+                            .selected_text(self.newcommand_display.to_string())
+                            .show_ui(ui, |ui| {
+                                ui.selectable_value(
+                                    &mut self.newcommand_display,
+                                    CommandType::SteamLaunch {
+                                        appid: 0,
+                                        settings: crate::types::CommandSettings::Normal,
+                                    },
+                                    "Steam",
+                                );
+                                ui.selectable_value(
+                                    &mut self.newcommand_display,
+                                    CommandType::Manual {
+                                        command: "".to_owned(),
+                                    },
+                                    "Manual",
+                                );
+                            });
                         match self.newcommand_display.as_mut() {
                             CommandType::Manual { command } => {
                                 ui.text_edit_singleline(command);
                             }
-                            CommandType::SteamLaunch { appid } => {
+                            CommandType::SteamLaunch { appid, settings } => {
                                 let mut steamlaunchstring: String = appid.to_string();
                                 let steamlaunchstring_old: String = steamlaunchstring.clone();
                                 ui.text_edit_singleline(&mut steamlaunchstring);
@@ -444,6 +453,25 @@ impl App {
                                     if let Ok(pars) = steamlaunchstring.parse::<u32>() {
                                         *appid = pars;
                                     }
+                                }
+                                ui.radio_value(
+                                    settings,
+                                    crate::types::CommandSettings::Normal,
+                                    "Normal",
+                                );
+                                ui.radio_value(
+                                    settings,
+                                    crate::types::CommandSettings::Legit,
+                                    "Legit",
+                                );
+                                ui.radio_value(
+                                    settings,
+                                    crate::types::CommandSettings::Fake,
+                                    "Fake",
+                                );
+                                // TODO: remove later, debug only
+                                if ui.button("Get launch preferences").clicked() {
+                                    get_launch_preferences(*appid).unwrap();
                                 }
                             }
                         }

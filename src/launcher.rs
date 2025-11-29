@@ -7,9 +7,9 @@
 // bwrap dirbinds
 // game arguments
 
-use std::process::Command;
+use std::{env::var, path::PathBuf, process::Command};
 
-use crate::types::{CommandType, WindowGeometry};
+use crate::types::{CommandSettings, CommandType, WindowGeometry};
 
 pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Command {
     let mut cmd = Command::new("gamescope");
@@ -33,7 +33,14 @@ pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Com
 
     // game arguments
     match command {
-        CommandType::SteamLaunch { appid } => {}
+        CommandType::SteamLaunch { appid, settings } => match settings {
+            CommandSettings::Normal => {
+                // bwrap --setenv a b
+                cmd.arg("--setenv");
+            }
+            CommandSettings::Legit => {}
+            CommandSettings::Fake => {}
+        },
         CommandType::Manual { command } => {
             cmd.arg(command);
             println!("executablepath: {}", command);

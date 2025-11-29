@@ -1,6 +1,7 @@
 mod gui;
 mod launcher;
 mod native_backend;
+mod parser;
 mod saves;
 mod types;
 

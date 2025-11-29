@@ -1,6 +1,6 @@
 use std::{
     collections::HashMap,
-    fmt::Display,
+    fmt::{Display, Write},
     fs::read_dir,
     io::Read,
     os::unix::fs::FileTypeExt,
@@ -10,6 +10,7 @@ use std::{
 };
 
 use anyhow::{Result, anyhow};
+use eframe::egui::WidgetText;
 use evdev::{Device as EvdevDevice, EventType, KeyCode};
 use flume::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
@@ -147,13 +148,34 @@ impl Device {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub enum CommandType {
-    SteamLaunch { appid: u32 },
-    Manual { command: String },
+    SteamLaunch {
+        appid: u32,
+        settings: CommandSettings,
+    },
+    Manual {
+        command: String,
+    },
+}
+
+#[derive(Serialize, Deserialize, Clone, PartialEq)]
+pub enum CommandSettings {
+    Normal,
+    Legit,
+    Fake,
 }
 
 impl CommandType {
     pub fn as_mut(&mut self) -> &mut Self {
         self
+    }
+}
+
+impl Display for CommandType {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CommandType::SteamLaunch { .. } => f.write_str("Steam Launch"),
+            CommandType::Manual { .. } => f.write_str("Manual"),
+        }
     }
 }
 
