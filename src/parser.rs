@@ -54,11 +54,25 @@ pub fn get_launch_preferences(appid: u32) -> Result<LaunchPreferences> {
     let acf_config = std::fs::read(acf_config)?;
     let acf_config = from_utf8(&acf_config)?;
 
+    let mut installdir = String::new();
+
     for line in acf_config.split("\n") {
         if line.contains("\"installdir\"") {
-            println!("hello, {}", line);
+            let mut parsvec: Vec<&str> = line.split("\"").skip(3).collect();
+
+            parsvec
+                .pop()
+                .ok_or(anyhow!("appmanifest parsing failed on pop"))?;
+
+            let pars = parsvec.join("\"");
+
+            installdir = pars.to_owned();
             break;
         }
+    }
+    let installpath = library.join("common").join(installdir);
+    if !installpath.exists() {
+        return Err(anyhow!("Game directory is missing"))?;
     }
 
     // TODO: Parsing
@@ -66,7 +80,7 @@ pub fn get_launch_preferences(appid: u32) -> Result<LaunchPreferences> {
     Ok(LaunchPreferences {
         AppID: appid,
         IsNative: true,
-        InstallPath: PathBuf::from_str("hello").unwrap(),
+        InstallPath: installpath,
         ExecutablePath: PathBuf::from_str("hello").unwrap(),
         ProtonPath: PathBuf::from_str("hello").ok(),
     })

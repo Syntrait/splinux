@@ -25,6 +25,7 @@ struct App {
     newbackend_display: Backend,
     newgeometry_display: WindowGeometry,
     newcommand_display: CommandType,
+    newcommand_display_steamid: String,
     aboutwindow_visible: bool,
     presetlist: Vec<Preset>,
     chosenpreset: Option<Preset>,
@@ -58,6 +59,7 @@ impl Default for App {
                 appid: 0,
                 settings: crate::types::CommandSettings::Normal,
             },
+            newcommand_display_steamid: "0".to_owned(),
             aboutwindow_visible: false,
             presetlist: vec![],
             chosenpreset: None,
@@ -113,8 +115,10 @@ impl App {
                 if ui.button("Create new preset").clicked() {
                     init_saves();
 
-                    let preset = Preset::new(self.newpresetname_display.to_owned(), vec![]);
-                    self.presetlist.push(preset);
+                    if !self.newpresetname_display.is_empty() {
+                        let preset = Preset::new(self.newpresetname_display.to_owned(), vec![]);
+                        self.presetlist.push(preset);
+                    }
                 }
                 if ui.button("Load a preset").clicked() {
                     if let Some(file) = FileDialog::new()
@@ -446,12 +450,30 @@ impl App {
                                 ui.text_edit_singleline(command);
                             }
                             CommandType::SteamLaunch { appid, settings } => {
-                                let mut steamlaunchstring: String = appid.to_string();
-                                let steamlaunchstring_old: String = steamlaunchstring.clone();
-                                ui.text_edit_singleline(&mut steamlaunchstring);
-                                if steamlaunchstring != steamlaunchstring_old {
-                                    if let Ok(pars) = steamlaunchstring.parse::<u32>() {
+                                if ui
+                                    .text_edit_singleline(&mut self.newcommand_display_steamid)
+                                    .changed()
+                                {
+                                    if let Ok(pars) = self.newcommand_display_steamid.parse::<u32>()
+                                    {
                                         *appid = pars;
+                                    } else {
+                                        if self.newcommand_display_steamid.contains("/app/") {
+                                            if let Some(pars1) = self
+                                                .newcommand_display_steamid
+                                                .split("/app/")
+                                                .nth(1)
+                                                .unwrap()
+                                                .split("/")
+                                                .nth(0)
+                                            {
+                                                if let Ok(pars2) = pars1.parse::<u32>() {
+                                                    *appid = pars2;
+                                                    self.newcommand_display_steamid =
+                                                        pars1.to_owned();
+                                                }
+                                            }
+                                        }
                                     }
                                 }
                                 ui.radio_value(
@@ -471,7 +493,9 @@ impl App {
                                 );
                                 // TODO: remove later, debug only
                                 if ui.button("Get launch preferences").clicked() {
-                                    get_launch_preferences(*appid).unwrap();
+                                    if let Err(err) = get_launch_preferences(*appid) {
+                                        eprintln!("{:#?}", err);
+                                    }
                                 }
                             }
                         }
