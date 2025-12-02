@@ -1,5 +1,6 @@
 use std::{
     env::var,
+    fs::{DirEntry, read_dir},
     path::PathBuf,
     str::{FromStr, from_utf8},
 };
@@ -122,59 +123,101 @@ fn read_config_vdf() -> Result<Vec<(u32, String)>> {
     Ok(vdf_vec)
 }
 
-pub fn get_launch_preferences(appid: u32) -> Result<LaunchPreferences> {
+pub fn list_protons() -> Result<Vec<PathBuf>> {
+    let home = var("HOME")?;
+    let compat_tools = PathBuf::from(home).join(".steam/steam/compatibilitytools.d");
+    let mut protons: Vec<PathBuf> = vec![];
+
+    if compat_tools.exists() {
+        let customprotons = read_dir(compat_tools)?;
+
+        let customprotons = customprotons
+            .filter_map(|dir| dir.ok())
+            .filter(|entry| entry.file_type().is_ok_and(|abc| abc.is_dir()))
+            .map(|direntry| direntry.path());
+
+        protons.extend(customprotons);
+    }
+
     let list_of_libraries = find_libraries()?;
 
-    let mut library = PathBuf::new();
+    for library in list_of_libraries {
+        let common = library.join("common");
 
-    for item_library in list_of_libraries {
-        if item_library.exists()
-            && item_library
-                .join(format!("appmanifest_{}.acf", appid))
-                .exists()
-        {
-            library = item_library;
-            break;
+        if common.exists() {
+            let apps = read_dir(common)?;
+            let commonapps = apps
+                .filter_map(|app| app.ok())
+                .filter(|app| {
+                    app.file_name()
+                        .into_string()
+                        .is_ok_and(|filename| filename.starts_with("Proton "))
+                })
+                .filter(|app| app.file_type().is_ok_and(|ftype| ftype.is_dir()))
+                .filter(|app| app.path().join("proton").exists())
+                .map(|app| app.path());
+
+            protons.extend(commonapps);
         }
     }
-    if !library.exists() {
-        Err(anyhow!("The game couldn't be found in any libraries"))?
-    }
 
-    let acf_config = library.join(format!("appmanifest_{}.acf", appid));
-    let acf_config = std::fs::read(acf_config)?;
-    let acf_config = from_utf8(&acf_config)?;
+    Ok(protons)
+}
 
-    let mut installdir = String::new();
+impl LaunchPreferences {
+    pub fn new(appid: u32, protonpath: Option<PathBuf>) -> Result<LaunchPreferences> {
+        let list_of_libraries = find_libraries()?;
 
-    for line in acf_config.split("\n") {
-        if line.contains("\"installdir\"") {
-            let mut parsvec: Vec<&str> = line.split("\"").skip(3).collect();
+        let mut library = PathBuf::new();
 
-            parsvec
-                .pop()
-                .ok_or(anyhow!("appmanifest parsing failed on pop"))?;
-
-            let pars = parsvec.join("\"");
-
-            installdir = pars.to_owned();
-            break;
+        for item_library in list_of_libraries {
+            if item_library.exists()
+                && item_library
+                    .join(format!("appmanifest_{}.acf", appid))
+                    .exists()
+            {
+                library = item_library;
+                break;
+            }
         }
+        if !library.exists() {
+            Err(anyhow!("The game couldn't be found in any libraries"))?
+        }
+
+        let acf_config = library.join(format!("appmanifest_{}.acf", appid));
+        let acf_config = std::fs::read(acf_config)?;
+        let acf_config = from_utf8(&acf_config)?;
+
+        let mut installdir = String::new();
+
+        for line in acf_config.split("\n") {
+            if line.contains("\"installdir\"") {
+                let mut parsvec: Vec<&str> = line.split("\"").skip(3).collect();
+
+                parsvec
+                    .pop()
+                    .ok_or(anyhow!("appmanifest parsing failed on pop"))?;
+
+                let pars = parsvec.join("\"");
+
+                installdir = pars.to_owned();
+                break;
+            }
+        }
+        let installpath = library.join("common").join(installdir);
+        if !installpath.exists() {
+            return Err(anyhow!("Game directory is missing"))?;
+        }
+
+        let proton_preference = read_config_vdf()?;
+        // TODO: check if the game is native
+
+        Ok(LaunchPreferences {
+            AppID: appid,
+            IsNative: true,
+            InstallPath: installpath,
+            ExecutablePath: PathBuf::from_str("hello").unwrap(),
+            ProtonPath: protonpath,
+        })
     }
-    let installpath = library.join("common").join(installdir);
-    if !installpath.exists() {
-        return Err(anyhow!("Game directory is missing"))?;
-    }
-
-    read_config_vdf()?;
-
-    // TODO: Parsing
-
-    Ok(LaunchPreferences {
-        AppID: appid,
-        IsNative: true,
-        InstallPath: installpath,
-        ExecutablePath: PathBuf::from_str("hello").unwrap(),
-        ProtonPath: PathBuf::from_str("hello").ok(),
-    })
 }

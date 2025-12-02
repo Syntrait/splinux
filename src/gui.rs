@@ -1,8 +1,8 @@
-use std::{env::var, fs::read_to_string, thread::spawn};
+use std::{env::var, fs::read_to_string, path::PathBuf, thread::spawn};
 
 use crate::{
     native_backend,
-    parser::get_launch_preferences,
+    parser::{LaunchPreferences, list_protons},
     saves::{construct_main_dir, init_saves},
     types::{
         Backend, BackendCommand, Client, CommandType, Device, GuiState, Preset, WindowGeometry,
@@ -29,6 +29,8 @@ struct App {
     aboutwindow_visible: bool,
     presetlist: Vec<Preset>,
     chosenpreset: Option<Preset>,
+    detectedprotons: Vec<PathBuf>,
+    newclient_protonver: PathBuf,
 }
 
 impl Drop for App {
@@ -57,12 +59,14 @@ impl Default for App {
             },
             newcommand_display: CommandType::SteamLaunch {
                 appid: 0,
-                settings: crate::types::CommandSettings::Normal,
+                settings: crate::types::SteamSettings::Normal,
             },
             newcommand_display_steamid: "0".to_owned(),
             aboutwindow_visible: false,
             presetlist: vec![],
             chosenpreset: None,
+            detectedprotons: vec![],
+            newclient_protonver: PathBuf::new(),
         }
     }
 }
@@ -433,7 +437,7 @@ impl App {
                                     &mut self.newcommand_display,
                                     CommandType::SteamLaunch {
                                         appid: 0,
-                                        settings: crate::types::CommandSettings::Normal,
+                                        settings: crate::types::SteamSettings::Normal,
                                     },
                                     "Steam",
                                 );
@@ -476,24 +480,51 @@ impl App {
                                         }
                                     }
                                 }
+
+                                ui.horizontal(|ui| {
+                                    ui.label("Proton version:");
+                                    ComboBox::from_id_salt("protonversion")
+                                        .selected_text(
+                                            self.newclient_protonver
+                                                .file_name()
+                                                .map(|x| x.to_str().unwrap())
+                                                .unwrap_or("Unchosen"),
+                                        )
+                                        .show_ui(ui, |ui| {
+                                            // list proton versions
+
+                                            if let Ok(protons) = list_protons() {
+                                                self.detectedprotons = protons;
+                                            }
+
+                                            for proton in self.detectedprotons.iter() {
+                                                ui.selectable_value(
+                                                    &mut self.newclient_protonver,
+                                                    proton.to_path_buf(),
+                                                    proton.file_name().unwrap().to_str().unwrap(),
+                                                );
+                                            }
+                                        });
+                                });
+
                                 ui.radio_value(
                                     settings,
-                                    crate::types::CommandSettings::Normal,
+                                    crate::types::SteamSettings::Normal,
                                     "Normal",
                                 );
                                 ui.radio_value(
                                     settings,
-                                    crate::types::CommandSettings::Legit,
+                                    crate::types::SteamSettings::Legit,
                                     "Legit",
                                 );
-                                ui.radio_value(
-                                    settings,
-                                    crate::types::CommandSettings::Fake,
-                                    "Fake",
-                                );
+                                ui.radio_value(settings, crate::types::SteamSettings::Fake, "Fake");
+
                                 // TODO: remove later, debug only
-                                if ui.button("Get launch preferences").clicked() {
-                                    if let Err(err) = get_launch_preferences(*appid) {
+                                if ui.button("Create launch preferences").clicked() {
+                                    if let Err(err) = LaunchPreferences::new(
+                                        *appid,
+                                        Some(self.newclient_protonver.clone()),
+                                    ) {
                                         eprintln!("{:#?}", err);
                                     }
                                 }

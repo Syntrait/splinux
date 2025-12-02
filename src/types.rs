@@ -148,17 +148,12 @@ impl Device {
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub enum CommandType {
-    SteamLaunch {
-        appid: u32,
-        settings: CommandSettings,
-    },
-    Manual {
-        command: String,
-    },
+    SteamLaunch { appid: u32, settings: SteamSettings },
+    Manual { command: String },
 }
 
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
-pub enum CommandSettings {
+pub enum SteamSettings {
     Normal,
     Legit,
     Fake,
