@@ -488,7 +488,7 @@ impl App {
                                             self.newclient_protonver
                                                 .file_name()
                                                 .map(|x| x.to_str().unwrap())
-                                                .unwrap_or("Unchosen"),
+                                                .unwrap_or("Native"),
                                         )
                                         .show_ui(ui, |ui| {
                                             // list proton versions
@@ -496,6 +496,12 @@ impl App {
                                             if let Ok(protons) = list_protons() {
                                                 self.detectedprotons = protons;
                                             }
+
+                                            ui.selectable_value(
+                                                &mut self.newclient_protonver,
+                                                PathBuf::new(),
+                                                "Native",
+                                            );
 
                                             for proton in self.detectedprotons.iter() {
                                                 ui.selectable_value(
