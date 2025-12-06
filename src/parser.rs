@@ -9,11 +9,11 @@ use anyhow::{Result, anyhow};
 use memchr::memchr_iter;
 
 pub struct LaunchPreferences {
-    AppID: u32,
-    IsNative: bool,
-    ExecutablePath: PathBuf,
-    InstallPath: PathBuf,
-    ProtonPath: Option<PathBuf>,
+    app_id: u32,
+    is_native: bool,
+    executable_path: PathBuf,
+    install_path: PathBuf,
+    proton_path: Option<PathBuf>,
 }
 
 enum VdfReadSteps {
@@ -327,11 +327,11 @@ impl LaunchPreferences {
         // TODO: check if the game is native
 
         Ok(LaunchPreferences {
-            AppID: appid,
-            IsNative: true,
-            InstallPath: installpath,
-            ExecutablePath: PathBuf::from_str("hello").unwrap(),
-            ProtonPath: protonpath,
+            app_id: appid,
+            is_native: true,
+            install_path: installpath,
+            executable_path: PathBuf::from_str("hello").unwrap(),
+            proton_path: protonpath,
         })
     }
 }
