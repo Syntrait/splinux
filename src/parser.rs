@@ -5,7 +5,7 @@ use std::{
     str::{FromStr, from_utf8},
 };
 
-use anyhow::{Ok, Result, anyhow};
+use anyhow::{Result, anyhow};
 use memchr::memchr_iter;
 
 pub struct LaunchPreferences {
