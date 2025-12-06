@@ -5,7 +5,8 @@ use std::{
     str::{FromStr, from_utf8},
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Ok, Result, anyhow};
+use memchr::memchr_iter;
 
 pub struct LaunchPreferences {
     AppID: u32,
@@ -36,6 +37,119 @@ pub fn find_libraries() -> Result<Vec<PathBuf>> {
         Err(anyhow!("Steam library location not found"))?
     }
     return Ok(libraries);
+}
+
+// This is the prefix for executable name
+const MAGIC_BYTES: [u8; 4] = [0xC6, 0x01, 0x00, 0x00];
+
+// This is the suffix (linux)
+const MAGIC_BYTES2: [u8; 6] = [0x6C, 0x69, 0x6E, 0x75, 0x78, 0x00];
+
+pub fn get_executable_path(appid: u32, isnative: bool, library: &PathBuf) -> Result<PathBuf> {
+    // involves reading appinfo.vdf
+    let home = var("HOME")?;
+    let appinfo_vdf = std::fs::read(format!("{}/.steam/steam/appcache/appinfo.vdf", home))?;
+    let appid_bytes: [u8; 4] = appid.to_le_bytes();
+
+    let appid_search = memchr_iter(appid_bytes[0], &appinfo_vdf)
+        .filter(|&x| appinfo_vdf[x + 1..].starts_with(&appid_bytes[1..]));
+
+    let appid_indexes: Vec<usize> = appid_search.collect();
+
+    assert!(appid_indexes.len() >= 3);
+
+    // appid search is done
+
+    let secondmatch_index = appid_indexes[1];
+
+    let name = &appinfo_vdf[secondmatch_index + 14..secondmatch_index + 14 + 30];
+
+    let namepos = name.windows(2).position(|x| x == [0x00, 0x01]).unwrap();
+
+    let name = &name[..namepos];
+
+    let name = String::from_utf8_lossy(name).into_owned();
+
+    println!("name: {}", name);
+
+    let appinfo_vdf = &appinfo_vdf[secondmatch_index..];
+
+    let search = memchr_iter(MAGIC_BYTES[0], &appinfo_vdf)
+        .filter(|&x| appinfo_vdf[x + 1..].starts_with(&MAGIC_BYTES[1..]))
+        .next()
+        .unwrap();
+
+    match isnative {
+        true => {
+            // if it is a native game
+
+            let appinfo_vdf = &appinfo_vdf[search + MAGIC_BYTES.len()..];
+
+            let index = memchr_iter(MAGIC_BYTES2[0], appinfo_vdf)
+                .filter(|&x| appinfo_vdf[x + 1..].starts_with(&MAGIC_BYTES2[1..]))
+                .next()
+                .unwrap();
+
+            let range_slice = &appinfo_vdf[index - 80..index];
+
+            let mut interest_iter = range_slice
+                .windows(MAGIC_BYTES.len())
+                .enumerate()
+                .filter(|(_, b)| b.starts_with(&MAGIC_BYTES));
+
+            let mut interest = interest_iter.next().unwrap();
+
+            if let Some(new_interest) = interest_iter.next() {
+                interest = new_interest;
+            }
+
+            let interest = interest.0;
+
+            let range_slice = &range_slice[interest + 4..];
+
+            let range_slice_index = range_slice
+                .windows(2)
+                .position(|x| x == [0x00, 0x01])
+                .unwrap();
+
+            let range_slice = &range_slice[..range_slice_index];
+
+            let stringified = String::from_utf8_lossy(range_slice).into_owned();
+            println!("stringified: {:#?}", stringified);
+
+            let executable_path = library.join("common").join(name).join(stringified);
+
+            if executable_path.exists() {
+                return Ok(executable_path);
+            } else {
+                return Err(anyhow!("executable_path doesn't exist"));
+            }
+        }
+        false => {
+            // if not a native game
+
+            let executable_name_endindex = appinfo_vdf[search + MAGIC_BYTES.len()..]
+                .windows(2)
+                .position(|x| x == [0x00, 0x01])
+                .unwrap();
+
+            let executable_name = &appinfo_vdf
+                [search + MAGIC_BYTES.len()..search + MAGIC_BYTES.len() + executable_name_endindex];
+
+            let executable_name = String::from_utf8_lossy(executable_name);
+            let executable_name = executable_name.into_owned();
+
+            println!("executable_name: {}", executable_name);
+
+            let executable_path = library.join("common").join(name).join(executable_name);
+
+            if executable_path.exists() {
+                return Ok(executable_path);
+            } else {
+                return Err(anyhow!("executable_path doesn't exist"));
+            }
+        }
+    }
 }
 
 fn read_config_vdf() -> Result<Vec<(u32, String)>> {
