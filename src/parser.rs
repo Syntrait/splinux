@@ -47,6 +47,9 @@ const MAGIC_BYTES: [u8; 4] = [0xC6, 0x01, 0x00, 0x00];
 // This is the suffix (linux)
 const MAGIC_BYTES2: [u8; 6] = [0x6C, 0x69, 0x6E, 0x75, 0x78, 0x00];
 
+// This is the g64 suffix that comes after win64
+const MAGIC_BYTES3: [u8; 6] = [0x67, 0x02, 0x00, 0x00, 0x36, 0x34];
+
 pub fn get_executable_path(appid: u32, isnative: bool, library: &PathBuf) -> Result<PathBuf> {
     // involves reading appinfo.vdf
     let home = var("HOME")?;
@@ -130,20 +133,63 @@ pub fn get_executable_path(appid: u32, isnative: bool, library: &PathBuf) -> Res
         false => {
             // if not a native game
 
-            let executable_name_endindex = appinfo_vdf[search + MAGIC_BYTES.len()..]
-                .windows(2)
-                .position(|x| x == [0x00, 0x01])
-                .unwrap();
+            let mut executable_path = PathBuf::new();
 
-            let executable_name = &appinfo_vdf
-                [search + MAGIC_BYTES.len()..search + MAGIC_BYTES.len() + executable_name_endindex];
+            {
+                let interestingrange = &appinfo_vdf[search + MAGIC_BYTES.len()..];
 
-            let executable_name = String::from_utf8_lossy(executable_name);
-            let executable_name = executable_name.into_owned();
+                let pos = interestingrange
+                    .windows(MAGIC_BYTES3.len())
+                    .position(|x| x == &MAGIC_BYTES3)
+                    .unwrap();
 
-            println!("executable_name: {}", executable_name);
+                let untilarchslice = &interestingrange[..pos];
 
-            let executable_path = library.join("common").join(name).join(executable_name);
+                let mut last_exec_index_match: usize = 0;
+
+                for (matchindex, _) in untilarchslice
+                    .windows(MAGIC_BYTES.len())
+                    .enumerate()
+                    .filter(|(_, b)| b == &MAGIC_BYTES)
+                {
+                    if matchindex > last_exec_index_match {
+                        last_exec_index_match = matchindex;
+                    }
+                }
+
+                let interestingrange =
+                    &interestingrange[last_exec_index_match + MAGIC_BYTES.len()..];
+
+                let executable_name_endindex = interestingrange
+                    .windows(2)
+                    .position(|x| x == [0x00, 0x01])
+                    .unwrap();
+
+                let executable_name = &interestingrange[..executable_name_endindex];
+                let executable_name = String::from_utf8_lossy(executable_name).into_owned();
+
+                let test_exec_path = library.join("common").join(&name).join(executable_name);
+
+                if test_exec_path.exists() {
+                    println!("test_exec_path exists!!");
+                    executable_path = test_exec_path;
+                }
+            }
+
+            if !executable_path.exists() {
+                let executable_name_endindex = appinfo_vdf[search + MAGIC_BYTES.len()..]
+                    .windows(2)
+                    .position(|x| x == [0x00, 0x01])
+                    .unwrap();
+
+                let executable_name = &appinfo_vdf[search + MAGIC_BYTES.len()
+                    ..search + MAGIC_BYTES.len() + executable_name_endindex];
+
+                let executable_name = String::from_utf8_lossy(executable_name);
+                let executable_name = executable_name.into_owned();
+
+                executable_path = library.join("common").join(&name).join(executable_name);
+            }
 
             if executable_path.exists() {
                 return Ok(executable_path);
