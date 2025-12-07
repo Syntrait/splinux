@@ -16,7 +16,7 @@ use flume::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use thiserror::Error;
 
-use crate::launcher::construct_command;
+use crate::{launcher::construct_command, parser::LaunchPreferences};
 
 // Gamepad
 pub const BTN_SOUTH: u16 = 304; // A
@@ -73,6 +73,7 @@ pub struct Client {
     pub command: CommandType,
     #[serde(skip_serializing, skip_deserializing)]
     pub handle: Option<Sender<BackendCommand>>,
+    pub launchpreferences: Option<LaunchPreferences>,
 }
 
 #[derive(Copy, Clone, Serialize, Deserialize)]
@@ -95,6 +96,7 @@ impl Clone for Client {
             geometry: self.geometry,
             command: self.command.to_owned(),
             handle: self.handle.clone(),
+            launchpreferences: self.launchpreferences.clone(),
         }
     }
 }
@@ -323,6 +325,7 @@ impl Client {
         backend: Backend,
         geometry: WindowGeometry,
         command: CommandType,
+        launchpreferences: Option<LaunchPreferences>,
     ) -> Result<Self> {
         if display.contains("-") && backend == Backend::Native {
             return Err(ClientError::UnsupportedError)?;
@@ -340,6 +343,7 @@ impl Client {
             geometry,
             command,
             handle: None,
+            launchpreferences,
         })
     }
 

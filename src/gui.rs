@@ -31,6 +31,7 @@ struct App {
     chosenpreset: Option<Preset>,
     detectedprotons: Vec<PathBuf>,
     newclient_protonver: PathBuf,
+    newclient_launchpreferences: Option<LaunchPreferences>,
 }
 
 impl Drop for App {
@@ -67,6 +68,7 @@ impl Default for App {
             chosenpreset: None,
             detectedprotons: vec![],
             newclient_protonver: PathBuf::new(),
+            newclient_launchpreferences: None,
         }
     }
 }
@@ -527,10 +529,14 @@ impl App {
 
                                 // TODO: remove later, debug only
                                 if ui.button("Create launch preferences").clicked() {
-                                    if let Err(err) = LaunchPreferences::new(
-                                        *appid,
-                                        Some(self.newclient_protonver.clone()),
-                                    ) {
+                                    let protonver: Option<PathBuf> =
+                                        if self.newclient_protonver.capacity() == 0 {
+                                            None
+                                        } else {
+                                            Some(self.newclient_protonver.clone())
+                                        };
+
+                                    if let Err(err) = LaunchPreferences::new(*appid, protonver) {
                                         eprintln!("{:#?}", err);
                                     }
                                 }
@@ -555,6 +561,7 @@ impl App {
                                         self.newgeometry_display,
                                         // TODO: Command
                                         self.newcommand_display.clone(),
+                                        self.newclient_launchpreferences.take(),
                                     )
                                     .unwrap(),
                                 );

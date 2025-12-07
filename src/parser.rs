@@ -7,7 +7,9 @@ use std::{
 
 use anyhow::{Result, anyhow};
 use memchr::memchr_iter;
+use serde::{Deserialize, Serialize};
 
+#[derive(Serialize, Deserialize, Clone)]
 pub struct LaunchPreferences {
     app_id: u32,
     is_native: bool,
@@ -323,14 +325,28 @@ impl LaunchPreferences {
             return Err(anyhow!("Game directory is missing"))?;
         }
 
-        let proton_preference = read_config_vdf()?;
-        // TODO: check if the game is native
+        let executablepath: PathBuf;
+
+        let isnative = protonpath.is_none();
+
+        if isnative {
+            // native
+            executablepath = get_executable_path(appid, true, &library)?;
+        } else {
+            // proton game
+            executablepath = get_executable_path(appid, false, &library)?;
+        }
+
+        // debug print, remove later
+        println!(
+            "appid: {appid}\nis_native: {isnative}\ninstall_path: {installpath:?}\nexecutable_path: {executablepath:?}\nproton_path: {protonpath:?}"
+        );
 
         Ok(LaunchPreferences {
             app_id: appid,
             is_native: true,
             install_path: installpath,
-            executable_path: PathBuf::from_str("hello").unwrap(),
+            executable_path: executablepath,
             proton_path: protonpath,
         })
     }
