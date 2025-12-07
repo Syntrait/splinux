@@ -28,15 +28,23 @@ pub fn find_libraries() -> Result<Vec<PathBuf>> {
     let mut libraries = vec![];
 
     let home = var("HOME")?;
-    let steamapps = PathBuf::from(home).join(".steam/steam/steamapps");
 
-    if steamapps.exists() {
-        println!("steamapps is normal!!");
-        libraries.push(steamapps);
+    let libraryvdf = std::fs::read(format!("{}/.steam/steam/config/libraryfolders.vdf", &home))?;
+    let libraryvdf = from_utf8(&libraryvdf)?;
+
+    for pathvar in libraryvdf.lines().filter(|x| x.contains("path")) {
+        let splits: Vec<&str> = pathvar.split("\"").collect();
+        let libpath = &splits[3..splits.len() - 1];
+        let libpath = libpath.join("\"");
+
+        let libpath = PathBuf::from(libpath).join("steamapps");
+        if libpath.exists() {
+            libraries.push(libpath);
+        }
     }
 
     if libraries.is_empty() {
-        Err(anyhow!("Steam library location not found"))?
+        Err(anyhow!("Couldn't find any Steam libraries"))?
     }
     return Ok(libraries);
 }
