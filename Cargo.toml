@@ -5,16 +5,16 @@ edition = "2024"
 
 [dependencies]
 x11rb = { version = "0.13.2", features = ["xinput", "xtest"] }
-eframe = "0.33.2"
+eframe = "0.33.3"
 evdev = "0.13.2"
-clap = "4.5.51"
+clap = "4.5.53"
 uinput = "0.1.3"
-libc = "0.2.177"
+libc = "0.2.178"
 anyhow = "1.0.100"
 thiserror = "2.0.17"
 serde = { version = "1.0.228", features = ["derive"] }
-rfd = "0.15.4"
-flume = "0.11.1"
+rfd = "0.16.0"
+flume = "0.12.0"
 serde_yaml = "0.9.34"
 memchr = "2.7.6"
 
