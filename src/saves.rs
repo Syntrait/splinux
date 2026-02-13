@@ -19,6 +19,21 @@ pub fn init_saves() {
         .recursive(true)
         .create(maindir.join("baseprefix"))
         .unwrap();
+
+    fs::DirBuilder::new()
+        .recursive(true)
+        .create(maindir.join("mounts"))
+        .unwrap();
+
+    fs::DirBuilder::new()
+        .recursive(true)
+        .create(maindir.join("mounts/game"))
+        .unwrap();
+
+    fs::DirBuilder::new()
+        .recursive(true)
+        .create(maindir.join("mounts/prefix"))
+        .unwrap();
 }
 
 pub fn construct_main_dir() -> PathBuf {

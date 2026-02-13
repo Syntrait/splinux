@@ -4,12 +4,13 @@ use std::{
     fs::read_dir,
     io::Read,
     os::unix::fs::FileTypeExt,
+    path::PathBuf,
     process::{Child, Command},
     str::from_utf8,
     thread::spawn,
 };
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use eframe::egui::WidgetText;
 use evdev::{Device as EvdevDevice, EventType, KeyCode};
 use flume::{Receiver, Sender};
@@ -157,7 +158,7 @@ pub enum CommandType {
 #[derive(Serialize, Deserialize, Clone, PartialEq)]
 pub enum SteamSettings {
     Normal,
-    Legit,
+    Legit { steam_location: PathBuf },
     Fake,
 }
 
@@ -358,11 +359,17 @@ impl Client {
             let mut char: Vec<u8> = vec![];
             loop {
                 char.clear();
-                stdout.read(&mut char).unwrap();
-                let text = from_utf8(&char).unwrap();
+                stdout.read(&mut char)?;
+                let text = from_utf8(&char)?;
 
                 if text.contains("Starting Xwayland on ") {
-                    self.display = text.split("on ").nth(1).unwrap().to_owned();
+                    self.display = text
+                        .split("on ")
+                        .nth(1)
+                        .with_context(|| {
+                            format!("{}:{} Invalid gamescope display output", file!(), line!())
+                        })?
+                        .to_owned();
                     break;
                 }
             }

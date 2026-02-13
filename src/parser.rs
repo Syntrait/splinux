@@ -50,13 +50,13 @@ pub fn find_libraries() -> Result<Vec<PathBuf>> {
 }
 
 // This is the prefix for executable name
-const MAGIC_BYTES: [u8; 4] = [0xC6, 0x01, 0x00, 0x00];
+const MAGIC_BYTES: [u8; 4] = [0xCE, 0x01, 0x00, 0x00];
 
 // This is the suffix (linux)
 const MAGIC_BYTES2: [u8; 6] = [0x6C, 0x69, 0x6E, 0x75, 0x78, 0x00];
 
-// This is the g64 suffix that comes after win64
-const MAGIC_BYTES3: [u8; 6] = [0x67, 0x02, 0x00, 0x00, 0x36, 0x34];
+// This is the g/j64 suffix that comes after win64
+const MAGIC_BYTES3: [u8; 5] = [0x02, 0x00, 0x00, 0x36, 0x34];
 
 pub fn get_executable_path(appid: u32, isnative: bool, library: &PathBuf) -> Result<PathBuf> {
     // involves reading appinfo.vdf

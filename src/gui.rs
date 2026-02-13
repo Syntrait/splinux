@@ -522,7 +522,9 @@ impl App {
                                 );
                                 ui.radio_value(
                                     settings,
-                                    crate::types::SteamSettings::Legit,
+                                    crate::types::SteamSettings::Legit {
+                                        steam_location: PathBuf::new(),
+                                    },
                                     "Legit",
                                 );
                                 ui.radio_value(settings, crate::types::SteamSettings::Fake, "Fake");

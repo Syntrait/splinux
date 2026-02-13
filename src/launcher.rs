@@ -7,11 +7,13 @@
 // bwrap dirbinds
 // game arguments
 
-use std::{env::var, path::PathBuf, process::Command};
+use std::{env::home_dir, process::Command};
 
 use crate::types::{CommandType, SteamSettings, WindowGeometry};
 
 pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Command {
+    let home = home_dir().unwrap();
+
     let mut cmd = Command::new("gamescope");
 
     // gamescope arguments
@@ -35,10 +37,18 @@ pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Com
     match command {
         CommandType::SteamLaunch { appid, settings } => match settings {
             SteamSettings::Normal => {
-                // bwrap --setenv a b
                 cmd.arg("--setenv");
+                cmd.arg("STEAMGAMEID");
+                cmd.arg(appid.to_string());
+
+                cmd.arg("STEAM_COMPAT_DATA_PATH");
+                cmd.arg(home.join(format!(".steam/steam/steamapps/compatdata/{}", appid)));
+
+                cmd.arg("STEAM_COMPAT_CLIENT_INSTALL_PATH");
+                cmd.arg(home.join(".steam/steam"));
+                //
             }
-            SteamSettings::Legit => {}
+            SteamSettings::Legit { steam_location } => {}
             SteamSettings::Fake => {}
         },
         CommandType::Manual { command } => {
