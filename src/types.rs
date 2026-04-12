@@ -227,7 +227,11 @@ pub fn get_devices() -> Vec<Device> {
             let path = "/dev/input/".to_owned() + &filename;
             let evdev_device = match EvdevDevice::open(&path) {
                 Ok(dev) => dev,
-                Err(_) => println!("Couldn't access evdev device"), // skip devices we can't access
+                Err(_) => {
+                    // skip devices we can't access
+                    println!("Couldn't access evdev device");
+                    continue;
+                }
             };
 
             let supports = evdev_device.supported_events();
