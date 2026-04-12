@@ -302,7 +302,17 @@ impl App {
                                 } else {
                                     let (tx, rx) = unbounded::<BackendCommand>();
 
-                                    client.run().unwrap();
+                                    // Pre-create virtual gamepads for device isolation
+                                    let precreated =
+                                        native_backend::precreate_virtual_gamepads(
+                                            &mut client.devices,
+                                        )
+                                        .unwrap();
+
+                                    // Launch game - bwrap will only expose this client's virtual gamepads
+                                    client
+                                        .run(precreated.virtual_device_info())
+                                        .unwrap();
 
                                     client.handle = Some(tx);
 
@@ -310,7 +320,12 @@ impl App {
                                     let clientdisplay = client.display.clone();
 
                                     spawn(move || {
-                                        native_backend::backend(clientdevices, clientdisplay, rx);
+                                        native_backend::backend(
+                                            clientdevices,
+                                            clientdisplay,
+                                            rx,
+                                            precreated,
+                                        );
                                     });
                                 }
                             }
