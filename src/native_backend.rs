@@ -3,13 +3,14 @@ use crate::types::{
     BTN_TL, BTN_TL2, BTN_TR, BTN_TR2, BTN_WEST, BackendCommand, ClientError, Device, DeviceType,
     fix_namenums,
 };
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use evdev::{AbsoluteAxisCode, Device as EvdevDevice, RelativeAxisCode};
 use flume::{Receiver, TryRecvError};
 use libc::{c_char, c_int, c_ulong};
 use std::{
+    collections::HashMap,
+    fs,
     thread::{JoinHandle, spawn},
-    u16,
 };
 use uinput::{
     Device as UInputDevice,
@@ -18,6 +19,143 @@ use uinput::{
 use x11rb::{
     connection::Connection, protocol::xtest::ConnectionExt, rust_connection::RustConnection,
 };
+
+/// Holds pre-created virtual gamepad devices and their /dev/input paths.
+/// Created before game launch so bwrap can isolate device access.
+pub struct PrecreatedGamepads {
+    /// (virtual_event_num, virtual_js_num) for bwrap device isolation
+    info: Vec<(u16, Option<u16>)>,
+    /// physical_event_num → pre-created UInputDevice
+    gamepads: HashMap<u16, UInputDevice>,
+}
+
+impl PrecreatedGamepads {
+    /// Returns the virtual device info needed by the launcher for bwrap isolation.
+    pub fn virtual_device_info(&self) -> &[(u16, Option<u16>)] {
+        &self.info
+    }
+}
+
+/// Pre-create virtual gamepad devices for all gamepad-type devices in the list.
+/// Must be called before launching the game so bwrap can restrict /dev/input access.
+pub fn precreate_virtual_gamepads(devices: &mut Vec<Device>) -> Result<PrecreatedGamepads> {
+    fix_namenums(devices)?;
+
+    let mut info = Vec::new();
+    let mut gamepads = HashMap::new();
+
+    for device in devices.iter() {
+        if device.devicetype != DeviceType::Gamepad {
+            continue;
+        }
+        if let Some(devid) = device.namenum {
+            let suffix = devid.to_string();
+            let name = format!("Splinux Virtual Gamepad Device {}", suffix);
+
+            let uinput_dev = create_virtual_gamepad(&suffix)?;
+
+            // Wait briefly for the kernel to create the device nodes
+            std::thread::sleep(std::time::Duration::from_millis(50));
+
+            let (event_num, js_num) = find_virtual_device_info(&name)
+                .ok_or_else(|| anyhow!("Could not find virtual device node for '{}'", name))?;
+
+            println!(
+                "Pre-created virtual gamepad '{}': event{}, js{:?}",
+                name, event_num, js_num
+            );
+
+            info.push((event_num, js_num));
+            gamepads.insert(devid, uinput_dev);
+        }
+    }
+
+    Ok(PrecreatedGamepads { info, gamepads })
+}
+
+/// Create a virtual gamepad with proper button AND axis registration.
+fn create_virtual_gamepad(suffix: &str) -> Result<UInputDevice> {
+    use event::absolute::{Hat, Position};
+
+    let dev = uinput::default()
+        .with_context(|| "initializing uinput device")?
+        .name(format!("Splinux Virtual Gamepad Device {}", suffix))?
+        // All gamepad/controller buttons
+        .event(event::Controller::All)?
+        // Left stick
+        .event(event::Absolute::Position(Position::X))?
+        .min(-32768)
+        .max(32767)
+        .fuzz(16)
+        .flat(128)
+        .event(event::Absolute::Position(Position::Y))?
+        .min(-32768)
+        .max(32767)
+        .fuzz(16)
+        .flat(128)
+        // Right stick
+        .event(event::Absolute::Position(Position::RX))?
+        .min(-32768)
+        .max(32767)
+        .fuzz(16)
+        .flat(128)
+        .event(event::Absolute::Position(Position::RY))?
+        .min(-32768)
+        .max(32767)
+        .fuzz(16)
+        .flat(128)
+        // Left trigger
+        .event(event::Absolute::Position(Position::Z))?
+        .min(0)
+        .max(1023)
+        // Right trigger
+        .event(event::Absolute::Position(Position::RZ))?
+        .min(0)
+        .max(1023)
+        // D-pad
+        .event(event::Absolute::Hat(Hat::X0))?
+        .min(-1)
+        .max(1)
+        .event(event::Absolute::Hat(Hat::Y0))?
+        .min(-1)
+        .max(1)
+        .create()?;
+
+    Ok(dev)
+}
+
+/// Find the event number and js number of a virtual input device by name.
+fn find_virtual_device_info(name: &str) -> Option<(u16, Option<u16>)> {
+    for entry in fs::read_dir("/sys/devices/virtual/input").ok()? {
+        let entry = entry.ok()?;
+        if !entry
+            .file_name()
+            .to_str()?
+            .starts_with("input")
+        {
+            continue;
+        }
+        let dev_name = fs::read_to_string(entry.path().join("name")).ok()?;
+        if dev_name.trim() != name {
+            continue;
+        }
+        let mut event_num = None;
+        let mut js_num = None;
+        for sub in fs::read_dir(entry.path()).ok()? {
+            let sub = sub.ok()?;
+            let fname = sub.file_name().into_string().ok()?;
+            if let Some(num) = fname.strip_prefix("event") {
+                event_num = num.parse().ok();
+            } else if let Some(num) = fname.strip_prefix("js") {
+                js_num = num.parse().ok();
+            }
+        }
+        if let Some(ev) = event_num {
+            return Some((ev, js_num));
+        }
+    }
+    None
+}
 
 #[link(name = "X11")]
 unsafe extern "C" {
@@ -90,19 +228,31 @@ impl DisplayPtr {
 }
 
 impl Peripheral {
-    fn new(path: String, suffix: String, displayvar: &String) -> Result<Self> {
+    fn new(
+        path: String,
+        suffix: String,
+        displayvar: &String,
+        precreated_uinput: Option<UInputDevice>,
+    ) -> Result<Self> {
         let evdev_device = EvdevDevice::open(&path)?;
         let (x11connection, _) = RustConnection::connect(Some(displayvar))?;
 
         let displayvar = displayvar.clone();
 
+        // If a pre-created uinput device was provided, mark as a configured gamepad
+        let (uinput_device, configured, devicetype) = if let Some(dev) = precreated_uinput {
+            (Some(dev), true, DeviceType::Gamepad)
+        } else {
+            (None, false, DeviceType::Unknown)
+        };
+
         Ok(Self {
             path,
             suffix,
             evdev_device,
-            uinput_device: None,
-            devicetype: DeviceType::Unknown,
-            configured: false,
+            uinput_device,
+            devicetype,
+            configured,
             display: None,
             x11connection,
             displayvar,
@@ -112,13 +262,7 @@ impl Peripheral {
     fn configure(&mut self) -> Result<()> {
         self.configured = true;
         if self.devicetype == DeviceType::Gamepad {
-            self.uinput_device = Some(
-                uinput::default()
-                    .with_context(|| "initializing uinput device")?
-                    .name(format!("Splinux Virtual Gamepad Device {}", self.suffix))?
-                    .event(event::Controller::All)?
-                    .create()?,
-            );
+            self.uinput_device = Some(create_virtual_gamepad(&self.suffix)?);
         } else if self.devicetype == DeviceType::Mouse {
             let mut displayparse: c_char = self.displayvar.parse().unwrap();
             self.display = Some(DisplayPtr::new(&mut displayparse));
@@ -336,6 +480,62 @@ impl Peripheral {
                             }
                         }
 
+                        // Left trigger
+                        AbsoluteAxisCode::ABS_Z => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Position(event::absolute::Position::Z),
+                                    value,
+                                )?;
+                                dev.synchronize()?;
+                            }
+                        }
+                        // Right trigger
+                        AbsoluteAxisCode::ABS_RZ => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Position(event::absolute::Position::RZ),
+                                    value,
+                                )?;
+                                dev.synchronize()?;
+                            }
+                        }
+                        // D-pad
+                        AbsoluteAxisCode::ABS_HAT0X => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Hat(event::absolute::Hat::X0),
+                                    value,
+                                )?;
+                                dev.synchronize()?;
+                            }
+                        }
+                        AbsoluteAxisCode::ABS_HAT0Y => {
+                            self.devicetype = DeviceType::Gamepad;
+                            if !self.configured {
+                                continue;
+                            };
+                            if let Some(dev) = self.uinput_device.as_mut() {
+                                dev.send(
+                                    event::Absolute::Hat(event::absolute::Hat::Y0),
+                                    value,
+                                )?;
+                                dev.synchronize()?;
+                            }
+                        }
+
                         _ => {}
                     },
 
@@ -374,6 +574,7 @@ pub fn backend(
     mut devices: Vec<Device>,
     displayvar: String,
     rx: Receiver<BackendCommand>,
+    mut precreated: PrecreatedGamepads,
 ) -> Result<()> {
     let mut handles: Vec<JoinHandle<()>> = vec![];
     fix_namenums(&mut devices)?;
@@ -381,7 +582,9 @@ pub fn backend(
     for device in devices {
         if let Some(devid) = device.namenum {
             let path = format!("/dev/input/event{}", devid);
-            let mut perip = Peripheral::new(path, devid.to_string(), &displayvar)?;
+            let precreated_uinput = precreated.gamepads.remove(&devid);
+            let mut perip =
+                Peripheral::new(path, devid.to_string(), &displayvar, precreated_uinput)?;
             let rx = rx.clone();
 
             let handle = spawn(move || {
