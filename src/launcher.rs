@@ -11,7 +11,11 @@ use std::{env::home_dir, process::Command};
 
 use crate::types::{CommandType, SteamSettings, WindowGeometry};
 
-pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Command {
+pub fn construct_command(
+    geometry: WindowGeometry,
+    command: &CommandType,
+    virtual_gamepad_devices: &[(u16, Option<u16>)],
+) -> Command {
     let home = home_dir().unwrap();
 
     let mut cmd = Command::new("gamescope");
@@ -31,6 +35,22 @@ pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Com
     cmd.arg("--dev-bind");
     cmd.arg("/");
     cmd.arg("/");
+
+    // Device isolation: hide all /dev/input, then only expose this client's virtual gamepads
+    if !virtual_gamepad_devices.is_empty() {
+        cmd.arg("--tmpfs");
+        cmd.arg("/dev/input");
+        for &(event_num, js_num) in virtual_gamepad_devices {
+            cmd.arg("--dev-bind");
+            cmd.arg(format!("/dev/input/event{}", event_num));
+            cmd.arg(format!("/dev/input/event{}", event_num));
+            if let Some(js) = js_num {
+                cmd.arg("--dev-bind");
+                cmd.arg(format!("/dev/input/js{}", js));
+                cmd.arg(format!("/dev/input/js{}", js));
+            }
+        }
+    }
     // TODO: bind arguments
 
     // game arguments
@@ -52,6 +72,7 @@ pub fn construct_command(geometry: WindowGeometry, command: &CommandType) -> Com
             SteamSettings::Fake => {}
         },
         CommandType::Manual { command } => {
+            cmd.arg("--");
             cmd.arg(command);
             println!("executablepath: {}", command);
         }

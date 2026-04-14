@@ -225,7 +225,14 @@ pub fn get_devices() -> Vec<Device> {
                 continue;
             }
             let path = "/dev/input/".to_owned() + &filename;
-            let evdev_device = EvdevDevice::open(&path).unwrap();
+            let evdev_device = match EvdevDevice::open(&path) {
+                Ok(dev) => dev,
+                Err(_) => {
+                    // skip devices we can't access
+                    println!("Couldn't access evdev device");
+                    continue;
+                }
+            };
 
             let supports = evdev_device.supported_events();
 
@@ -348,12 +355,13 @@ impl Client {
         })
     }
 
-    pub fn run(&mut self) -> Result<()> {
+    pub fn run(&mut self, virtual_gamepad_devices: &[(u16, Option<u16>)]) -> Result<()> {
         if self.is_alive() {
             return Err(ClientError::AlreadySpawnedError)?;
         }
         // TODO: gamescope arguments
-        let mut proc = construct_command(self.geometry, &self.command).spawn()?;
+        let mut proc =
+            construct_command(self.geometry, &self.command, virtual_gamepad_devices).spawn()?;
 
         if let Some(stdout) = proc.stdout.as_mut() {
             let mut char: Vec<u8> = vec![];
