@@ -303,16 +303,13 @@ impl App {
                                     let (tx, rx) = unbounded::<BackendCommand>();
 
                                     // Pre-create virtual gamepads for device isolation
-                                    let precreated =
-                                        native_backend::precreate_virtual_gamepads(
-                                            &mut client.devices,
-                                        )
-                                        .unwrap();
+                                    let precreated = native_backend::precreate_virtual_gamepads(
+                                        &mut client.devices,
+                                    )
+                                    .unwrap();
 
                                     // Launch game - bwrap will only expose this client's virtual gamepads
-                                    client
-                                        .run(precreated.virtual_device_info())
-                                        .unwrap();
+                                    client.run(precreated.virtual_device_info()).unwrap();
 
                                     client.handle = Some(tx);
 
@@ -325,7 +322,8 @@ impl App {
                                             clientdisplay,
                                             rx,
                                             precreated,
-                                        );
+                                        )
+                                        .unwrap();
                                     });
                                 }
                             }

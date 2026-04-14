@@ -9,6 +9,7 @@ use flume::{Receiver, TryRecvError};
 use libc::{c_char, c_int, c_ulong};
 use std::{
     collections::HashMap,
+    ffi::CString,
     fs,
     thread::{JoinHandle, spawn},
 };
@@ -128,11 +129,7 @@ fn create_virtual_gamepad(suffix: &str) -> Result<UInputDevice> {
 fn find_virtual_device_info(name: &str) -> Option<(u16, Option<u16>)> {
     for entry in fs::read_dir("/sys/devices/virtual/input").ok()? {
         let entry = entry.ok()?;
-        if !entry
-            .file_name()
-            .to_str()?
-            .starts_with("input")
-        {
+        if !entry.file_name().to_str()?.starts_with("input") {
             continue;
         }
         let dev_name = fs::read_to_string(entry.path().join("name")).ok()?;
@@ -159,7 +156,7 @@ fn find_virtual_device_info(name: &str) -> Option<(u16, Option<u16>)> {
 
 #[link(name = "X11")]
 unsafe extern "C" {
-    fn XOpenDisplay(display_name: *mut c_char) -> *mut Display;
+    fn XOpenDisplay(display_name: *const c_char) -> *mut Display;
     fn XCloseDisplay(display: *mut Display) -> c_int;
 }
 
@@ -196,7 +193,7 @@ impl Drop for Peripheral {
     fn drop(&mut self) {
         let _ = self.evdev_device.ungrab();
 
-        if let Some(display) = self.display {
+        if let Some(display) = self.display.take() {
             unsafe {
                 XCloseDisplay(display.0);
             }
@@ -208,17 +205,8 @@ struct DisplayPtr(*mut Display);
 
 unsafe impl Send for DisplayPtr {}
 
-impl Clone for DisplayPtr {
-    fn clone(&self) -> Self {
-        let mut null: c_char = 0;
-        Self::new(&mut null)
-    }
-}
-
-impl Copy for DisplayPtr {}
-
 impl DisplayPtr {
-    fn new(display: *mut i8) -> Self {
+    fn new(display: *const c_char) -> Self {
         unsafe {
             Self {
                 0: XOpenDisplay(display),
@@ -264,8 +252,10 @@ impl Peripheral {
         if self.devicetype == DeviceType::Gamepad {
             self.uinput_device = Some(create_virtual_gamepad(&self.suffix)?);
         } else if self.devicetype == DeviceType::Mouse {
-            let mut displayparse: c_char = self.displayvar.parse().unwrap();
-            self.display = Some(DisplayPtr::new(&mut displayparse));
+            let displayparse = CString::new(self.displayvar.as_str())
+                .with_context(|| format!("displayvar is: {:?}", self.displayvar))
+                .unwrap();
+            self.display = Some(DisplayPtr::new(displayparse.as_ptr()));
             if let Some(display) = self.display.as_mut() {
                 if display.0.is_null() {
                     return Err(ClientError::X11DisplayOpenError)?;
@@ -377,7 +367,6 @@ impl Peripheral {
                             }
                             if let Some(display) = self.display.as_mut() {
                                 unsafe {
-                                    let display = display.to_owned();
                                     let success =
                                         XTestFakeRelativeMotionEvent(display.0, value, 0, 0);
                                     if success == 0 {
@@ -394,7 +383,6 @@ impl Peripheral {
                             }
                             if let Some(display) = self.display.as_mut() {
                                 unsafe {
-                                    let display = display.to_owned();
                                     let success =
                                         XTestFakeRelativeMotionEvent(display.0, 0, value, 0);
                                     if success == 0 {
@@ -515,10 +503,7 @@ impl Peripheral {
                                 continue;
                             };
                             if let Some(dev) = self.uinput_device.as_mut() {
-                                dev.send(
-                                    event::Absolute::Hat(event::absolute::Hat::X0),
-                                    value,
-                                )?;
+                                dev.send(event::Absolute::Hat(event::absolute::Hat::X0), value)?;
                                 dev.synchronize()?;
                             }
                         }
@@ -528,10 +513,7 @@ impl Peripheral {
                                 continue;
                             };
                             if let Some(dev) = self.uinput_device.as_mut() {
-                                dev.send(
-                                    event::Absolute::Hat(event::absolute::Hat::Y0),
-                                    value,
-                                )?;
+                                dev.send(event::Absolute::Hat(event::absolute::Hat::Y0), value)?;
                                 dev.synchronize()?;
                             }
                         }
